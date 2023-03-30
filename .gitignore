@@ -1,0 +1,4 @@
+*.tar.gz
+ansible/prometheus-community
+data
+o11y-deploy
