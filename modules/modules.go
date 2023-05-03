@@ -15,10 +15,13 @@ package modules
 
 import (
 	"context"
+	"fmt"
+	"net"
 	"reflect"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/common/config"
+	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/roidelapluie/o11y-deploy/model/ansible"
 )
@@ -84,4 +87,25 @@ func (c Configs) MarshalYAML() (interface{}, error) {
 	}
 
 	return cfgPtr.Interface(), nil
+}
+
+// GetTargets transforms targets into prometheus targets
+func GetTargets(targets []labels.Labels) ([]labels.Labels, error) {
+	promTargets := make([]labels.Labels, 0)
+	for _, target := range targets {
+		t := target.Copy()
+		addr := t.Get(model.AddressLabel)
+		if addr == "" {
+			return nil, fmt.Errorf("__address__ label not found in label set")
+		}
+		host, _, err := net.SplitHostPort(string(addr))
+		if err != nil {
+			host = string(addr)
+		}
+		lbs := labels.NewBuilder(t)
+		lbs.Set(model.AddressLabel, net.JoinHostPort(host, "9100"))
+		lbs.Set("job", "node")
+		promTargets = append(promTargets, lbs.Labels(labels.EmptyLabels()))
+	}
+	return promTargets, nil
 }

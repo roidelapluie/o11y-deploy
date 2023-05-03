@@ -15,11 +15,11 @@ package linux
 
 import (
 	"context"
-	"fmt"
-	"net"
+	"time"
 
 	"github.com/roidelapluie/o11y-deploy/model/ansible"
 	"github.com/roidelapluie/o11y-deploy/modules"
+	"gopkg.in/yaml.v3"
 
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
@@ -85,24 +85,8 @@ func (m *Module) Playbook(ctx context.Context) (*ansible.Playbook, error) {
 	}, nil
 }
 
-func (m *Module) GetTargets(targets []labels.Labels) ([]labels.Labels, error) {
-	promTargets := make([]labels.Labels, 0)
-	for _, target := range targets {
-		t := target.Copy()
-		addr := t.Get(model.AddressLabel)
-		if addr == "" {
-			return nil, fmt.Errorf("__address__ label not found in label set")
-		}
-		host, _, err := net.SplitHostPort(string(addr))
-		if err != nil {
-			host = string(addr)
-		}
-		lbs := labels.NewBuilder(t)
-		lbs.Set(model.AddressLabel, net.JoinHostPort(host, "9100"))
-		lbs.Set("job", "node")
-		promTargets = append(promTargets, lbs.Labels(labels.EmptyLabels()))
-	}
-	return promTargets, nil
+func (m *Module) GetTargets(labels []labels.Labels) ([]labels.Labels, error) {
+	return modules.GetTargets(labels)
 }
 
 func (m *Module) HostVars() (map[string]string, error) {
