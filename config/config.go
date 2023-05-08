@@ -14,6 +14,7 @@
 package config
 
 import (
+	"bytes"
 	"io/ioutil"
 	"path/filepath"
 	"time"
@@ -22,7 +23,7 @@ import (
 	"github.com/prometheus/prometheus/discovery"
 	"github.com/prometheus/prometheus/model/relabel"
 	"github.com/roidelapluie/o11y-deploy/modules"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 var DefaultGlobal = Global{
@@ -123,7 +124,9 @@ func LoadFile(filePath string) (*Config, error) {
 		return nil, err
 	}
 
-	err = yaml.UnmarshalStrict(data, &config)
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	decoder.KnownFields(true)
+	err = decoder.Decode(&config)
 	if err != nil {
 		return nil, err
 	}

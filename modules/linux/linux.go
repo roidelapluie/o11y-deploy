@@ -23,6 +23,7 @@ import (
 
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
+	"github.com/prometheus/prometheus/model/rulefmt"
 )
 
 var DefaultConfig = ModuleConfig{
@@ -87,6 +88,34 @@ func (m *Module) Playbook(ctx context.Context) (*ansible.Playbook, error) {
 
 func (m *Module) GetTargets(labels []labels.Labels) ([]labels.Labels, error) {
 	return modules.GetTargets(labels)
+}
+
+func node(value string) yaml.Node {
+	return yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Value: value,
+	}
+}
+
+// GetRules returns recording and alerting rules for this module.
+func (m *Module) GetRules() rulefmt.RuleGroup {
+	return rulefmt.RuleGroup{
+		Name: "linux",
+		Rules: []rulefmt.RuleNode{
+			{
+				Alert: node("HostOutOfMemory"),
+				Expr:  node("(node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100 < 10) * on(instance) group_left (nodename) node_uname_info{nodename=~\".+\"}"),
+				For:   model.Duration(2 * time.Minute),
+				Annotations: map[string]string{
+					"summary":     "Host out of memory (instance {{ $labels.instance }})",
+					"description": "Node memory is filling up (< 10% left)\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}",
+				},
+				Labels: map[string]string{
+					"severity": "warning",
+				},
+			},
+		},
+	}
 }
 
 func (m *Module) HostVars() (map[string]string, error) {

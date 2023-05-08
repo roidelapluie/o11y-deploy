@@ -98,8 +98,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	deployer.Run()
-
+	if err = deployer.Run(); err != nil {
+		fmt.Printf("Error running deployer: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 func preflightCheck(depsHome string) error {

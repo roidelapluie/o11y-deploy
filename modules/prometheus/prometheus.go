@@ -15,13 +15,18 @@ package linux
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
+	"github.com/prometheus/prometheus/model/rulefmt"
 	"github.com/roidelapluie/o11y-deploy/model/ansible"
 	"github.com/roidelapluie/o11y-deploy/model/ctx"
 	"github.com/roidelapluie/o11y-deploy/modules"
+	"gopkg.in/yaml.v3"
 )
 
 var DefaultConfig = ModuleConfig{
@@ -91,11 +96,42 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 		},
 	}
 
+	rulesFile, err := os.CreateTemp("", "prometheus_*.rules")
+	if err != nil {
+		return nil, fmt.Errorf("could not create rules file: %v", err)
+	}
+
+	ruleGroups := rulefmt.RuleGroups{
+		Groups: ctx.GetPromRules(c),
+	}
+
+	rulesYaml, err := yaml.Marshal(ruleGroups)
+	if err != nil {
+		return nil, fmt.Errorf("could not marshal rules file: %v", err)
+	}
+
+	if _, err := rulesFile.Write([]byte(rulesYaml)); err != nil {
+		return nil, fmt.Errorf("could not write rules file: %v", err)
+	}
+
+	rulesLink := filepath.Join(os.TempDir(), "prometheus.rules")
+	if _, err := os.Stat(rulesLink); err == nil {
+		// Link exists; delete it so we can relink to the new version
+		os.Remove(rulesLink)
+	}
+
+	err = os.Link(rulesFile.Name(), rulesLink)
+	if err != nil {
+		return nil, fmt.Errorf("could not link rules file: %v", err)
+	}
+
 	return &ansible.Playbook{
 		Name: "Linux",
 		Vars: map[string]interface{}{
-			"prometheus_version":        m.cfg.PrometheusVersion,
-			"prometheus_scrape_configs": scrapeConfigs,
+			"prometheus_version":           m.cfg.PrometheusVersion,
+			"prometheus_scrape_configs":    scrapeConfigs,
+			"prometheus_alert_rules":       []string{},
+			"prometheus_alert_rules_files": []string{rulesLink},
 		},
 		Hosts:  "all",
 		Become: true,
@@ -113,6 +149,52 @@ func (m *Module) HostVars() (map[string]string, error) {
 
 func (m *Module) GetTargets(targets []labels.Labels) ([]labels.Labels, error) {
 	return nil, nil
+}
+
+func node(value string) yaml.Node {
+	return yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Value: value,
+	}
+}
+
+// GetRules returns recording and alerting rules for this module.
+func (m *Module) GetRules() rulefmt.RuleGroup {
+	return rulefmt.RuleGroup{
+		Name: "prometheus",
+		Rules: []rulefmt.RuleNode{
+			{
+				Alert: node("PrometheusBadConfig"),
+				Expr:  node("max_over_time(prometheus_config_last_reload_successful{job=\"prometheus\"}[5m]) == 0"),
+				For:   model.Duration(10 * time.Minute),
+				Annotations: map[string]string{
+					"description": "Prometheus {{$labels.instance}} has failed to reload its configuration.",
+					"summary":     "Failed Prometheus configuration reload.",
+				},
+				Labels: map[string]string{
+					"severity": "critical",
+				},
+			},
+			{
+				Alert: node("PrometheusNotificationQueueRunningFull"),
+				Expr: node(`
+                    (
+                        predict_linear(prometheus_notifications_queue_length{job="prometheus"}[5m], 60 * 30)
+                    >
+                        min_over_time(prometheus_notifications_queue_capacity{job="prometheus"}[5m])
+                    )
+                    `),
+				For: model.Duration(15 * time.Minute),
+				Annotations: map[string]string{
+					"description": "Alert notification queue of Prometheus {{$labels.instance}} is running full.",
+					"summary":     "Prometheus alert notification queue predicted to run full in less than 30m.",
+				},
+				Labels: map[string]string{
+					"severity": "warning",
+				},
+			},
+		},
+	}
 }
 
 func labelsToStaticConfigs(labelSetList map[string][]labels.Labels) []StaticConfig {

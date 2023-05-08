@@ -23,6 +23,7 @@ import (
 	"github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
+	"github.com/prometheus/prometheus/model/rulefmt"
 	"github.com/roidelapluie/o11y-deploy/model/ansible"
 )
 
@@ -31,6 +32,7 @@ type Module interface {
 	Playbook(context.Context) (*ansible.Playbook, error)
 	HostVars() (map[string]string, error)
 	GetTargets([]labels.Labels) ([]labels.Labels, error)
+	GetRules() rulefmt.RuleGroup
 }
 
 // ModuleOptions provides options for a Module.

@@ -28,6 +28,7 @@ import (
 	"github.com/prometheus/prometheus/discovery/targetgroup"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/model/relabel"
+	"github.com/prometheus/prometheus/model/rulefmt"
 	"github.com/roidelapluie/o11y-deploy/ansible"
 	"github.com/roidelapluie/o11y-deploy/config"
 	ansiblemodel "github.com/roidelapluie/o11y-deploy/model/ansible"
@@ -76,6 +77,7 @@ func (d *Deployer) Run() error {
 
 	moduleTargets := make(map[string][]labels.Labels)
 	prometheusTargets := make(map[string][]labels.Labels)
+	ruleGroups := []rulefmt.RuleGroup{}
 	lb := labels.NewBuilder(labels.EmptyLabels())
 	for _, targetGroup := range d.cfg.TargetGroups {
 		tgs := make([]labels.Labels, 0)
@@ -112,11 +114,13 @@ func (d *Deployer) Run() error {
 				return err
 			}
 			promTargets = append(promTargets, mtgs...)
+			ruleGroups = append(ruleGroups, m.GetRules())
 		}
 		prometheusTargets[targetGroup.Name] = promTargets
 	}
 
 	c := ctx.SetPromTargets(context.Background(), prometheusTargets)
+	c = ctx.SetPromRules(c, ruleGroups)
 
 	for _, targetGroup := range d.cfg.TargetGroups {
 		tgs, _ := moduleTargets[targetGroup.Name]

@@ -17,12 +17,14 @@ import (
 	"context"
 
 	"github.com/prometheus/prometheus/model/labels"
+	"github.com/prometheus/prometheus/model/rulefmt"
 )
 
 type key int
 
 const (
 	promTargets key = iota
+	promRules   key = iota
 )
 
 func GetPromTargets(ctx context.Context) map[string][]labels.Labels {
@@ -35,4 +37,18 @@ func GetPromTargets(ctx context.Context) map[string][]labels.Labels {
 
 func SetPromTargets(ctx context.Context, targets map[string][]labels.Labels) context.Context {
 	return context.WithValue(ctx, promTargets, targets)
+}
+
+// GetPromRules gets Prometheus rule groups from the context
+func GetPromRules(ctx context.Context) []rulefmt.RuleGroup {
+	rules, ok := ctx.Value(promRules).([]rulefmt.RuleGroup)
+	if !ok {
+		return nil
+	}
+	return rules
+}
+
+// SetPromRules adds Prometheus rule groups to the context
+func SetPromRules(ctx context.Context, rules []rulefmt.RuleGroup) context.Context {
+	return context.WithValue(ctx, promRules, rules)
 }
