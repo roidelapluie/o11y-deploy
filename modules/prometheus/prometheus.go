@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package linux
+package prometheus
 
 import (
 	"context"
@@ -149,52 +149,6 @@ func (m *Module) HostVars() (map[string]string, error) {
 
 func (m *Module) GetTargets(targets []labels.Labels) ([]labels.Labels, error) {
 	return nil, nil
-}
-
-func node(value string) yaml.Node {
-	return yaml.Node{
-		Kind:  yaml.ScalarNode,
-		Value: value,
-	}
-}
-
-// GetRules returns recording and alerting rules for this module.
-func (m *Module) GetRules() rulefmt.RuleGroup {
-	return rulefmt.RuleGroup{
-		Name: "prometheus",
-		Rules: []rulefmt.RuleNode{
-			{
-				Alert: node("PrometheusBadConfig"),
-				Expr:  node("max_over_time(prometheus_config_last_reload_successful{job=\"prometheus\"}[5m]) == 0"),
-				For:   model.Duration(10 * time.Minute),
-				Annotations: map[string]string{
-					"description": "Prometheus {{$labels.instance}} has failed to reload its configuration.",
-					"summary":     "Failed Prometheus configuration reload.",
-				},
-				Labels: map[string]string{
-					"severity": "critical",
-				},
-			},
-			{
-				Alert: node("PrometheusNotificationQueueRunningFull"),
-				Expr: node(`
-                    (
-                        predict_linear(prometheus_notifications_queue_length{job="prometheus"}[5m], 60 * 30)
-                    >
-                        min_over_time(prometheus_notifications_queue_capacity{job="prometheus"}[5m])
-                    )
-                    `),
-				For: model.Duration(15 * time.Minute),
-				Annotations: map[string]string{
-					"description": "Alert notification queue of Prometheus {{$labels.instance}} is running full.",
-					"summary":     "Prometheus alert notification queue predicted to run full in less than 30m.",
-				},
-				Labels: map[string]string{
-					"severity": "warning",
-				},
-			},
-		},
-	}
 }
 
 func labelsToStaticConfigs(labelSetList map[string][]labels.Labels) []StaticConfig {
