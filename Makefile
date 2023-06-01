@@ -13,6 +13,10 @@ roles:
 		ansible/prometheus-community/roles/node_exporter \
 		ansible/prometheus-community/roles/prometheus
 
+build-frontend:
+	cd frontend/ui && npm run build
+	cd frontend && go build
+
 build: roles
 	go build
 
