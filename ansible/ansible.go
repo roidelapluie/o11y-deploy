@@ -124,8 +124,12 @@ func (ar *AnsibleRunner) RunPlaybooks(ctx context.Context, playbooks []*ansible.
 	cmd := exec.Command(ar.AnsiblePath, args...)
 	cmdWriter := writer.New(os.Stdout)
 	errWriter := writer.NewBufferedWriter(cmdWriter)
-	cmd.Stdout = cmdWriter
-	cmd.Stderr = errWriter
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if !ar.debug {
+		cmd.Stdout = cmdWriter
+		cmd.Stderr = errWriter
+	}
 	cmd.Env = os.Environ()
 	if ar.debug {
 		cmd.Env = append(cmd.Env, "ANSIBLE_DEBUG=1")
@@ -138,7 +142,9 @@ func (ar *AnsibleRunner) RunPlaybooks(ctx context.Context, playbooks []*ansible.
 
 	err = cmd.Run()
 
-	errWriter.WriteAll(os.Stderr)
+	if !ar.debug {
+		errWriter.WriteAll(os.Stderr)
+	}
 
 	if err != nil {
 		ar.Logger.Log("msg", "Error running playbook", "err", err)
