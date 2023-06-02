@@ -14,7 +14,7 @@ roles:
 		ansible/prometheus-community/roles/prometheus
 
 build-frontend:
-	cd frontend/ui && npm run build
+	cd frontend/ui && npm install && npm run build
 	cd frontend && go build
 
 build: roles
