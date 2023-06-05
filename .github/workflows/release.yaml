@@ -26,9 +26,15 @@ jobs:
           make init_roles
           make build
 
+      - name: Build frontend
+        run: |
+          make build-frontend
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v1
         with:
-          files: o11y-deploy
+          files: |
+            o11y-deploy
+            frontend/frontend
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

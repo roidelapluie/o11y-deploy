@@ -22,3 +22,7 @@ jobs:
         run: |
           make init_roles
           make build
+
+      - name: Build frontend
+        run: |
+          make build-frontend
