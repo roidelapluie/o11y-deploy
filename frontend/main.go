@@ -21,12 +21,12 @@ import (
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/roidelapluie/o11y-deploy/frontend/ui"
 )
 
 func main() {
 	// Define flags
 	port := kingpin.Flag("port", "Port to listen on.").Default("9000").String()
-	dirPath := kingpin.Flag("dir", "Path to directory to serve.").Default("ui/build").String()
 	devMode := kingpin.Flag("dev", "Use development mode.").Default("false").Bool()
 
 	// Parse the flags
@@ -51,7 +51,7 @@ func main() {
 		})
 	} else {
 		// Serve the directory at the /ui path
-		r.StaticFS("/ui", http.Dir(*dirPath))
+		r.StaticFS("/ui", ui.Assets)
 		// Redirect to /ui when accessing the root path
 	}
 

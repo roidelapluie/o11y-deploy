@@ -15,7 +15,8 @@ roles:
 
 build-frontend:
 	cd frontend/ui && npm install && npm run build
-	cd frontend && go build
+	cd frontend/ui && ./compress_assets.sh
+	cd frontend && go build -tags builtinassets -o o11y-deploy-frontend
 
 build: roles
 	go build

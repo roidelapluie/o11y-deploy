@@ -1,4 +1,9 @@
+*.gz
 *.tar.gz
 ansible/prometheus-community
 data
 o11y-deploy
+frontend/o11y-deploy-frontend
+frontend/ui/embed.go
+o11y.yml
+do-token
