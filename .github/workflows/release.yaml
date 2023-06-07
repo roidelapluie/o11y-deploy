@@ -35,6 +35,6 @@ jobs:
         with:
           files: |
             o11y-deploy
-            frontend/frontend
+            frontend/o11y-deploy-frontend
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
