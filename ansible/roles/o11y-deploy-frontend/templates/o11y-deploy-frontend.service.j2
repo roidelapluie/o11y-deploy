@@ -1,0 +1,18 @@
+{{ ansible_managed | comment }}
+
+[Unit]
+Description=o11y-deploy-frontend
+After=network-online.target
+
+[Service]
+Type=simple
+Environment="GOMAXPROCS={{ ansible_processor_vcpus|default(ansible_processor_count) }}"
+User=o11y
+Group=o11y
+ExecStart=/usr/bin/o11y-deploy-frontend
+
+SyslogIdentifier=o11y-deploy-frontend
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

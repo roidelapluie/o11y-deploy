@@ -1,0 +1,47 @@
+---
+- name: Assert usage of systemd as an init system
+  ansible.builtin.assert:
+    that: ansible_service_mgr == 'systemd'
+    msg: "This module only works with systemd"
+
+- name: Install package fact dependencies
+  become: true
+  ansible.builtin.package:
+    name: "{{ _pkg_fact_req }}"
+    state: present
+  vars:
+    _pkg_fact_req: "{% if (ansible_pkg_mgr == 'apt') %}\
+                    {{ ('python-apt' if ansible_python_version is version('3', '<') else 'python3-apt') }}\
+                    {% else %}\
+                    {% endif %}"
+
+- name: Gather package facts
+  ansible.builtin.package_facts:
+  when:
+    - "not 'packages' in ansible_facts"
+
+- name: Discover latest version
+  ansible.builtin.set_fact:
+    o11y_deploy_version:  "{{ (lookup('url', 'https://api.github.com/repos/roidelapluie/o11y-deploy/releases/latest', headers=_github_api_headers,
+                           split_lines=False) | from_json).get('tag_name') | replace('v', '') }}"
+  run_once: true
+  until: o11y_deploy_version is version('0.0.0', '>=')
+  retries: 10
+  when:
+    - o11y_deploy_version == "latest"
+
+#- name: Get o11y-deploy-frontend binary checksum
+#  block:
+#    - name: Get checksum list
+#      ansible.builtin.set_fact:
+#        __o11y_deploy_checksums: "{{ lookup('url', 'https://github.com/repos/roidelapluie/o11y-deploy/releases/download/v{{ o11y_deploy_version }}/sha256sums.txt', headers=_github_api_headers, wantlist=True) | list }}"
+#      run_once: true
+#      until: __o11y_deploy_checksums is search('o11y-deploy-frontend')
+#      retries: 10
+#
+#    - name: "Get checksum for o11y-deploy-frontend"
+#      ansible.builtin.set_fact:
+#        __o11y_deploy_frontend_checksum: "{{ item.split(' ')[0] }}"
+#      with_items: "{{ __prometheus_checksums }}"
+#      when:
+#        - "o11y-deploy-frontend in item"

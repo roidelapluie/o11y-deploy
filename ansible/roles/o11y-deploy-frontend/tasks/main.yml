@@ -1,0 +1,26 @@
+---
+- name: Preflight
+  ansible.builtin.include_tasks:
+    file: preflight.yml
+    apply:
+      tags:
+        - o11y_deploy_frontend_configure
+        - o11y_deploy_frontend_install
+        - o11y_deploy_frontend_run
+
+- name: Install
+  ansible.builtin.include_tasks:
+    file: install.yml
+    apply:
+      tags:
+        - o11y_deploy_frontend_install
+
+- name: Ensure o11y-deploy-frontend service is started and enabled
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+    name: o11y-deploy-frontend
+    state: started
+    enabled: true
+  tags:
+    - o11y_deploy_frontend_run

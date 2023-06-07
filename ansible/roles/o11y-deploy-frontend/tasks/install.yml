@@ -1,0 +1,73 @@
+---
+- name: Create o11y system group
+  ansible.builtin.group:
+    name: o11y
+    system: true
+    state: present
+
+- name: Create o11y system user
+  ansible.builtin.user:
+    name: o11y
+    system: true
+    shell: "/usr/bin/nologin"
+    group: o11y
+    createhome: false
+    state: present
+
+- name: Get o11y-deploy-frontend binary
+  block:
+    - name: Download o11y-deploy-frontend binary to local folder
+      become: false
+      ansible.builtin.get_url:
+        url: "https://github.com/roidelapluie/o11y-deploy/releases/download/v{{ o11y_deploy_version }}/o11y-deploy-frontend"
+        dest: "/tmp/o11y-deploy-frontend"
+        mode: 0644
+      register: _download_binary
+      until: _download_binary is succeeded
+      retries: 5
+      delay: 2
+      delegate_to: localhost
+      check_mode: false
+
+    - name: Propagate o11y-deploy frontend binary
+      ansible.builtin.copy:
+        src: /tmp/o11y-deploy-frontend
+        dest: /usr/bin/o11y-deploy-frontend
+        mode: 0755
+        owner: root
+        group: root
+      notify:
+        - restart o11y-deploy-frontend
+
+- name: Create systemd service unit
+  ansible.builtin.template:
+    src: o11y-deploy-frontend.service.j2
+    dest: /etc/systemd/system/o11y-deploy-frontend.service
+    mode: 0644
+    owner: root
+    group: root
+  notify: restart o11y-deploy-frontend
+
+- name: Install SELinux dependencies
+  ansible.builtin.package:
+    name: "{{ ['libselinux-python', 'policycoreutils-python']
+           if ansible_python_version is version('3', '<') else
+           ['python3-libselinux', 'python3-policycoreutils'] }}"
+    state: present
+  register: _install_packages
+  until: _install_packages is succeeded
+  retries: 5
+  delay: 2
+  when:
+    - ansible_version.full is version('2.4', '>=')
+    - ansible_selinux.status == 'enabled'
+
+- name: Allow o11y-deploy-frontend to bind to port in SELinux
+  community.general.seport:
+    ports: 9000
+    proto: tcp
+    setype: http_port_t
+    state: present
+  when:
+    - ansible_version.full is version('2.4', '>=')
+    - ansible_selinux.status == 'enabled'

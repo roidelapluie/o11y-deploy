@@ -10,6 +10,7 @@ init_roles:
 # target for creating the tar.gz file
 roles:
 	./tar_directories.sh ansible/roles.tar.gz \
+		ansible/roles/o11y-deploy-frontend \
 		ansible/prometheus-community/roles/node_exporter \
 		ansible/prometheus-community/roles/prometheus
 
