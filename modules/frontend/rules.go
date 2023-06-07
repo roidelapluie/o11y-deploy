@@ -11,14 +11,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package frontend
 
 import (
-	_ "github.com/prometheus/prometheus/discovery/digitalocean"
-	_ "github.com/prometheus/prometheus/discovery/file"
-	_ "github.com/prometheus/prometheus/discovery/http"
-
-	_ "github.com/roidelapluie/o11y-deploy/modules/frontend"
-	_ "github.com/roidelapluie/o11y-deploy/modules/linux"
-	_ "github.com/roidelapluie/o11y-deploy/modules/prometheus"
+	"github.com/prometheus/prometheus/model/rulefmt"
+	"gopkg.in/yaml.v3"
 )
+
+// GetRules returns recording and alerting rules for this module.
+func (m *Module) GetRules() rulefmt.RuleGroup {
+	return rulefmt.RuleGroup{
+		Name:  "frontend",
+		Rules: []rulefmt.RuleNode{},
+	}
+}
+
+func node(value string) yaml.Node {
+	return yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Value: value,
+	}
+}
