@@ -104,6 +104,7 @@ func (d *Deployer) Run() error {
 		}
 		moduleTargets[targetGroup.Name] = tgs
 		promTargets := []labels.Labels{}
+
 		for _, mod := range targetGroup.Modules.ModulesConfigs {
 			m, err := mod.NewModule(modules.ModuleOptions{})
 			if err != nil {

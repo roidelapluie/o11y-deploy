@@ -157,17 +157,9 @@ func readConfigs(structVal reflect.Value, startField int) (Configs, error) {
 		}
 		var val reflect.Value
 		if field.IsNil() {
-			val = reflect.New(field.Type().Elem()) // Get the zero value of the field's type
-			// Manually call UnmarshalYAML on the zero value
-			if unmarshaler, ok := val.Interface().(yaml.Unmarshaler); ok {
-				err := unmarshaler.UnmarshalYAML(func(interface{}) error { return nil })
-				if err != nil {
-					return nil, err
-				}
-			}
-		} else {
-			val = field
+			continue // Skip nil fields
 		}
+		val = field
 
 		c, ok := val.Interface().(Config)
 		if !ok {
