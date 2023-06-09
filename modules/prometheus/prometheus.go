@@ -30,6 +30,7 @@ import (
 )
 
 var DefaultConfig = ModuleConfig{
+	Enabled:           false,
 	PrometheusVersion: "2.43.0",
 }
 
@@ -38,6 +39,7 @@ func init() {
 }
 
 type ModuleConfig struct {
+	Enabled           bool   `yaml:"enabled"`
 	PrometheusVersion string `yaml:"prometheus_version"`
 }
 
@@ -76,6 +78,11 @@ func (m *ModuleConfig) NewModule(modules.ModuleOptions) (modules.Module, error) 
 	return &Module{
 		cfg: m,
 	}, nil
+}
+
+// IsEnabled returns a boolean indicating if the Module is enabled.
+func (m *ModuleConfig) IsEnabled() bool {
+	return m.Enabled
 }
 
 type Module struct {

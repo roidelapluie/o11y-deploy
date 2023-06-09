@@ -23,6 +23,7 @@ import (
 )
 
 var DefaultConfig = ModuleConfig{
+	Enabled:         false,
 	FrontendVersion: "latest",
 }
 
@@ -31,6 +32,7 @@ func init() {
 }
 
 type ModuleConfig struct {
+	Enabled         bool   `yaml:"enabled"`
 	FrontendVersion string `yaml:"frontend_version"`
 }
 
@@ -55,6 +57,11 @@ func (m *ModuleConfig) NewModule(modules.ModuleOptions) (modules.Module, error) 
 	return &Module{
 		cfg: m,
 	}, nil
+}
+
+// IsEnabled returns a boolean indicating if the Module is enabled.
+func (m *ModuleConfig) IsEnabled() bool {
+	return m.Enabled
 }
 
 type Module struct {

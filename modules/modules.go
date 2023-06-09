@@ -45,6 +45,9 @@ type Config interface {
 	// Name returns the name of the discovery mechanism.
 	Name() string
 
+	// IsEnabled returns a boolean indicating if the Module is enabled.
+	IsEnabled() bool
+
 	// NewModule returns a Discoverer for the Config
 	// with the given DiscovererOptions.
 	NewModule(ModuleOptions) (Module, error)

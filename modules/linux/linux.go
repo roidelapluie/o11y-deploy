@@ -23,6 +23,7 @@ import (
 )
 
 var DefaultConfig = ModuleConfig{
+	Enabled:             false,
 	EnableExporter:      true,
 	NodeExporterVersion: "1.5.0",
 }
@@ -32,6 +33,7 @@ func init() {
 }
 
 type ModuleConfig struct {
+	Enabled             bool   `yaml:"enabled"`
 	EnableExporter      bool   `yaml:"enable_exporter"`
 	NodeExporterVersion string `yaml:"node_exporter_version"`
 }
@@ -57,6 +59,11 @@ func (m *ModuleConfig) NewModule(modules.ModuleOptions) (modules.Module, error) 
 	return &Module{
 		cfg: m,
 	}, nil
+}
+
+// IsEnabled returns a boolean indicating if the Module is enabled.
+func (m *ModuleConfig) IsEnabled() bool {
+	return m.Enabled
 }
 
 type Module struct {
