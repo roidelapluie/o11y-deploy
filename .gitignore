@@ -1,6 +1,7 @@
 *.gz
 *.tar.gz
 ansible/prometheus-community
+ansible/grafana-ansible-collection
 data
 o11y-deploy
 frontend/o11y-deploy-frontend

@@ -33,6 +33,8 @@ type Module interface {
 	HostVars() (map[string]string, error)
 	GetTargets([]labels.Labels) ([]labels.Labels, error)
 	GetRules() rulefmt.RuleGroup
+	GetDashboards() []map[string]interface{}
+	GetDashboardFiles() map[string][]byte
 }
 
 // ModuleOptions provides options for a Module.
@@ -95,7 +97,7 @@ func (c Configs) MarshalYAML() (interface{}, error) {
 }
 
 // GetTargets transforms targets into prometheus targets
-func GetTargets(targets []labels.Labels) ([]labels.Labels, error) {
+func GetTargets(targets []labels.Labels, port, job string) ([]labels.Labels, error) {
 	promTargets := make([]labels.Labels, 0)
 	for _, target := range targets {
 		t := target.Copy()
@@ -108,8 +110,8 @@ func GetTargets(targets []labels.Labels) ([]labels.Labels, error) {
 			host = string(addr)
 		}
 		lbs := labels.NewBuilder(t)
-		lbs.Set(model.AddressLabel, net.JoinHostPort(host, "9100"))
-		lbs.Set("job", "node")
+		lbs.Set(model.AddressLabel, net.JoinHostPort(host, port))
+		lbs.Set("job", job)
 		promTargets = append(promTargets, lbs.Labels(labels.EmptyLabels()))
 	}
 	return promTargets, nil

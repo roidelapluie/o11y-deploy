@@ -90,7 +90,7 @@ func (m *Module) Playbook(ctx context.Context) (*ansible.Playbook, error) {
 }
 
 func (m *Module) GetTargets(labels []labels.Labels) ([]labels.Labels, error) {
-	return modules.GetTargets(labels)
+	return modules.GetTargets(labels, "9100", "node")
 }
 
 func (m *Module) HostVars() (map[string]string, error) {

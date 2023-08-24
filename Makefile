@@ -5,14 +5,16 @@ all: roles
 
 
 init_roles:
-	cd ansible && git clone https://github.com/roidelapluie/ansible prometheus-community
+	cd ansible \
+	    && git clone https://github.com/roidelapluie/ansible prometheus-community \
+		&& git clone https://github.com/grafana/grafana-ansible-collection
 
 # target for creating the tar.gz file
 roles:
 	./tar_directories.sh ansible/roles.tar.gz \
-		ansible/roles/o11y-deploy-frontend \
 		ansible/prometheus-community/roles/node_exporter \
-		ansible/prometheus-community/roles/prometheus
+		ansible/prometheus-community/roles/prometheus \
+		ansible/grafana-ansible-collection/roles/grafana
 
 build-frontend:
 	cd frontend/ui && npm install && npm run build

@@ -11,14 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package grafana
 
-import (
-	_ "github.com/prometheus/prometheus/discovery/digitalocean"
-	_ "github.com/prometheus/prometheus/discovery/file"
-	_ "github.com/prometheus/prometheus/discovery/http"
+// GetDashboards returns pointers to grafana.com dashboards
+func (m *Module) GetDashboards() []map[string]interface{} {
+	return []map[string]interface{}{}
+}
 
-	_ "github.com/roidelapluie/o11y-deploy/modules/grafana"
-	_ "github.com/roidelapluie/o11y-deploy/modules/linux"
-	_ "github.com/roidelapluie/o11y-deploy/modules/prometheus"
-)
+// GetDashboardFiles returns included dashboard files
+func (m *Module) GetDashboardFiles() map[string][]byte {
+	return make(map[string][]byte)
+}

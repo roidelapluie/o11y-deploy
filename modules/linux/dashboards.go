@@ -11,24 +11,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package frontend
+package linux
 
-import (
-	"github.com/prometheus/prometheus/model/rulefmt"
-	"gopkg.in/yaml.v3"
-)
+import _ "embed"
 
-// GetRules returns recording and alerting rules for this module.
-func (m *Module) GetRules() rulefmt.RuleGroup {
-	return rulefmt.RuleGroup{
-		Name:  "frontend",
-		Rules: []rulefmt.RuleNode{},
+//go:embed dashboards/15172_rev6.json
+var nodeDashboard []byte
+
+// GetDashboards returns pointers to grafana.com dashboards
+func (m *Module) GetDashboards() []map[string]interface{} {
+	return []map[string]interface{}{
+		{
+			"dashboard_id": 1860,
+			"revision_id":  31,
+			"datasource":   "prometheus",
+		},
 	}
 }
 
-func node(value string) yaml.Node {
-	return yaml.Node{
-		Kind:  yaml.ScalarNode,
-		Value: value,
-	}
+// GetDashboardFiles returns included dashboard files
+func (m *Module) GetDashboardFiles() map[string][]byte {
+	dashboards := make(map[string][]byte)
+
+	dashboards["15172_rev6.json"] = nodeDashboard
+
+	return dashboards
 }

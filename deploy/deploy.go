@@ -34,6 +34,7 @@ import (
 	ansiblemodel "github.com/roidelapluie/o11y-deploy/model/ansible"
 	"github.com/roidelapluie/o11y-deploy/model/ctx"
 	"github.com/roidelapluie/o11y-deploy/modules"
+	"golang.org/x/exp/maps"
 )
 
 type Deployer struct {
@@ -78,6 +79,8 @@ func (d *Deployer) Run() error {
 	moduleTargets := make(map[string][]labels.Labels)
 	prometheusTargets := make(map[string][]labels.Labels)
 	ruleGroups := []rulefmt.RuleGroup{}
+	dashboards := []map[string]interface{}{}
+	dashboardFiles := make(map[string][]byte)
 	lb := labels.NewBuilder(labels.EmptyLabels())
 	for _, targetGroup := range d.cfg.TargetGroups {
 		tgs := make([]labels.Labels, 0)
@@ -116,12 +119,16 @@ func (d *Deployer) Run() error {
 			}
 			promTargets = append(promTargets, mtgs...)
 			ruleGroups = append(ruleGroups, m.GetRules())
+			dashboards = append(dashboards, m.GetDashboards()...)
+			maps.Copy(dashboardFiles, m.GetDashboardFiles())
 		}
 		prometheusTargets[targetGroup.Name] = promTargets
 	}
 
 	c := ctx.SetPromTargets(context.Background(), prometheusTargets)
 	c = ctx.SetPromRules(c, ruleGroups)
+	c = ctx.SetDashboards(c, dashboards)
+	c = ctx.SetDashboardFiles(c, dashboardFiles)
 
 	for _, targetGroup := range d.cfg.TargetGroups {
 		tgs, _ := moduleTargets[targetGroup.Name]
@@ -129,6 +136,14 @@ func (d *Deployer) Run() error {
 		inventory, err := generateInventory(tgs)
 		if err != nil {
 			return err
+		}
+
+		if targetGroup.Name == "servers" {
+			servers := []string{}
+			for host := range inventory.Groups["all"].Hosts {
+				servers = append(servers, host)
+			}
+			c = ctx.SetPromServers(c, servers)
 		}
 
 		var pbs = make([]*ansiblemodel.Playbook, 0)

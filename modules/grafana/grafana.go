@@ -11,20 +11,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package frontend
+package grafana
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/roidelapluie/o11y-deploy/model/ansible"
+	"github.com/roidelapluie/o11y-deploy/model/ctx"
 	"github.com/roidelapluie/o11y-deploy/modules"
 
 	"github.com/prometheus/prometheus/model/labels"
 )
 
 var DefaultConfig = ModuleConfig{
-	Enabled:         false,
-	FrontendVersion: "latest",
+	AdminPassword:  "changeme",
+	Enabled:        false,
+	GrafanaVersion: "latest",
 }
 
 func init() {
@@ -32,12 +38,13 @@ func init() {
 }
 
 type ModuleConfig struct {
-	Enabled         bool   `yaml:"enabled"`
-	FrontendVersion string `yaml:"frontend_version"`
+	AdminPassword  string `yaml:"admin_password"`
+	Enabled        bool   `yaml:"enabled"`
+	GrafanaVersion string `yaml:"grafana_version"`
 }
 
 func (m *ModuleConfig) Name() string {
-	return "frontend"
+	return "grafana"
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
@@ -68,24 +75,50 @@ type Module struct {
 	cfg *ModuleConfig
 }
 
-func (m *Module) Playbook(ctx context.Context) (*ansible.Playbook, error) {
+func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
+	dashboardsDir, err := os.MkdirTemp("", "grafana-dashboards")
+	if err != nil {
+		return nil, fmt.Errorf("could not create dashboard directory: %v", err)
+	}
+
+	dashboardFiles := ctx.GetDashboardFiles(c)
+	for name, content := range dashboardFiles {
+		err = os.WriteFile(filepath.Join(dashboardsDir, name), content, 0666)
+	}
+
 	return &ansible.Playbook{
-		Name: "Frontend",
+		Name: "Grafana",
 		Vars: map[string]interface{}{
-			"o11y_deploy_version": m.cfg.FrontendVersion,
+			"grafana_version": m.cfg.GrafanaVersion,
+			"grafana_security": map[string]string{
+				"admin_user":     "admin",
+				"admin_password": m.cfg.AdminPassword,
+			},
+			"grafana_datasources": []map[string]interface{}{
+				{
+					"name":       "prometheus",
+					"type":       "prometheus",
+					"access":     "proxy",
+					"url":        fmt.Sprintf("http://%s:9090/", strings.Split(ctx.GetPromServers(c)[0], ":")[0]),
+					"basic_auth": false,
+				},
+			},
+			"grafana_dashboards":     ctx.GetDashboards(c),
+			"grafana_dashboards_dir": dashboardsDir,
+			"grafana_metrics": map[string]interface{}{
+				"enabled": true,
+			},
 		},
 		Hosts:  "all",
 		Become: true,
 		Roles: []ansible.Role{
-			ansible.Role{
-				Name: "o11y-deploy-frontend",
-			},
+			{Name: "grafana"},
 		},
 	}, nil
 }
 
 func (m *Module) GetTargets(labels []labels.Labels) ([]labels.Labels, error) {
-	return modules.GetTargets(labels)
+	return modules.GetTargets(labels, "3000", "grafana")
 }
 
 func (m *Module) HostVars() (map[string]string, error) {

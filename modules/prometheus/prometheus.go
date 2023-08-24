@@ -155,7 +155,7 @@ func (m *Module) HostVars() (map[string]string, error) {
 }
 
 func (m *Module) GetTargets(targets []labels.Labels) ([]labels.Labels, error) {
-	return nil, nil
+	return modules.GetTargets(targets, "9090", "prometheus")
 }
 
 func labelsToStaticConfigs(labelSetList map[string][]labels.Labels) []StaticConfig {
