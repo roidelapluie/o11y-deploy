@@ -31,8 +31,8 @@ import (
 type Module interface {
 	Playbook(context.Context) (*ansible.Playbook, error)
 	HostVars() (map[string]string, error)
-	GetTargets([]labels.Labels) ([]labels.Labels, error)
-	GetRules() rulefmt.RuleGroup
+	GetTargets([]labels.Labels, string) ([]labels.Labels, error)
+	GetRules(string) rulefmt.RuleGroup
 	GetDashboards() []map[string]interface{}
 	GetDashboardFiles() map[string][]byte
 }
@@ -97,7 +97,7 @@ func (c Configs) MarshalYAML() (interface{}, error) {
 }
 
 // GetTargets transforms targets into prometheus targets
-func GetTargets(targets []labels.Labels, port, job string) ([]labels.Labels, error) {
+func GetTargets(targets []labels.Labels, port, group string) ([]labels.Labels, error) {
 	promTargets := make([]labels.Labels, 0)
 	for _, target := range targets {
 		t := target.Copy()
@@ -111,7 +111,7 @@ func GetTargets(targets []labels.Labels, port, job string) ([]labels.Labels, err
 		}
 		lbs := labels.NewBuilder(t)
 		lbs.Set(model.AddressLabel, net.JoinHostPort(host, port))
-		lbs.Set("job", job)
+		lbs.Set("group_name", group)
 		promTargets = append(promTargets, lbs.Labels(labels.EmptyLabels()))
 	}
 	return promTargets, nil

@@ -14,6 +14,7 @@
 package linux
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/prometheus/common/model"
@@ -22,9 +23,9 @@ import (
 )
 
 // GetRules returns recording and alerting rules for this module.
-func (m *Module) GetRules() rulefmt.RuleGroup {
+func (m *Module) GetRules(tg string) rulefmt.RuleGroup {
 	return rulefmt.RuleGroup{
-		Name: "linux",
+		Name: fmt.Sprintf("%v-linux", tg),
 		Rules: []rulefmt.RuleNode{
 			{
 				Alert: node("HostOutOfMemory"),

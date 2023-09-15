@@ -14,14 +14,16 @@
 package grafana
 
 import (
+	"fmt"
+
 	"github.com/prometheus/prometheus/model/rulefmt"
 	"gopkg.in/yaml.v3"
 )
 
 // GetRules returns recording and alerting rules for this module.
-func (m *Module) GetRules() rulefmt.RuleGroup {
+func (m *Module) GetRules(tg string) rulefmt.RuleGroup {
 	return rulefmt.RuleGroup{
-		Name:  "grafana",
+		Name:  fmt.Sprintf("%v-grafana", tg),
 		Rules: []rulefmt.RuleNode{},
 	}
 }

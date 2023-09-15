@@ -117,8 +117,8 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 	}, nil
 }
 
-func (m *Module) GetTargets(labels []labels.Labels) ([]labels.Labels, error) {
-	return modules.GetTargets(labels, "3000", "grafana")
+func (m *Module) GetTargets(labels []labels.Labels, group string) ([]labels.Labels, error) {
+	return modules.GetTargets(labels, "3000", group)
 }
 
 func (m *Module) HostVars() (map[string]string, error) {

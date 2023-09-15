@@ -23,6 +23,7 @@ import (
 type key int
 
 const (
+	targetGroup           key = iota
 	promTargets           key = iota
 	promRules             key = iota
 	promServers           key = iota
@@ -30,21 +31,21 @@ const (
 	grafanaDashboardFiles key = iota
 )
 
-func GetPromTargets(ctx context.Context) map[string][]labels.Labels {
-	targets, ok := ctx.Value(promTargets).(map[string][]labels.Labels)
+func GetPromTargets(ctx context.Context) map[string]map[string][]labels.Labels {
+	targets, ok := ctx.Value(promTargets).(map[string]map[string][]labels.Labels)
 	if !ok {
 		return nil
 	}
 	return targets
 }
 
-func SetPromTargets(ctx context.Context, targets map[string][]labels.Labels) context.Context {
+func SetPromTargets(ctx context.Context, targets map[string]map[string][]labels.Labels) context.Context {
 	return context.WithValue(ctx, promTargets, targets)
 }
 
 // GetPromRules gets Prometheus rule groups from the context
-func GetPromRules(ctx context.Context) []rulefmt.RuleGroup {
-	rules, ok := ctx.Value(promRules).([]rulefmt.RuleGroup)
+func GetPromRules(ctx context.Context) map[string][]rulefmt.RuleGroup {
+	rules, ok := ctx.Value(promRules).(map[string][]rulefmt.RuleGroup)
 	if !ok {
 		return nil
 	}
@@ -52,8 +53,13 @@ func GetPromRules(ctx context.Context) []rulefmt.RuleGroup {
 }
 
 // SetPromRules adds Prometheus rule groups to the context
-func SetPromRules(ctx context.Context, rules []rulefmt.RuleGroup) context.Context {
-	return context.WithValue(ctx, promRules, rules)
+func SetPromRules(ctx context.Context, tg string, rules []rulefmt.RuleGroup) context.Context {
+	rulesMap, ok := ctx.Value(promRules).(map[string][]rulefmt.RuleGroup)
+	if !ok {
+		rulesMap = make(map[string][]rulefmt.RuleGroup)
+	}
+	rulesMap[tg] = rules
+	return context.WithValue(ctx, promRules, rulesMap)
 }
 
 // GetPromServers gets Prometheus server IP's from the context

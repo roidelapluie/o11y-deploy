@@ -65,6 +65,8 @@ func (d *Deployer) Run() error {
 
 	level.Debug(d.logger).Log("msg", "Starting deployment...")
 
+	c := context.Background()
+
 	// Check if the directory already exists
 	if _, err := os.Stat(d.cfg.Global.DataDir); os.IsNotExist(err) {
 		// If the directory does not exist, create it
@@ -77,7 +79,7 @@ func (d *Deployer) Run() error {
 	}
 
 	moduleTargets := make(map[string][]labels.Labels)
-	prometheusTargets := make(map[string][]labels.Labels)
+	prometheusTargets := make(map[string]map[string][]labels.Labels)
 	ruleGroups := []rulefmt.RuleGroup{}
 	dashboards := []map[string]interface{}{}
 	dashboardFiles := make(map[string][]byte)
@@ -106,27 +108,30 @@ func (d *Deployer) Run() error {
 			}
 		}
 		moduleTargets[targetGroup.Name] = tgs
-		promTargets := []labels.Labels{}
+		promTargets := make(map[string][]labels.Labels)
 
 		for _, mod := range targetGroup.Modules.ModulesConfigs {
+			if !mod.IsEnabled() {
+				continue
+			}
 			m, err := mod.NewModule(modules.ModuleOptions{})
 			if err != nil {
 				return err
 			}
-			mtgs, err := m.GetTargets(tgs)
+			mtgs, err := m.GetTargets(tgs, targetGroup.Name)
 			if err != nil {
 				return err
 			}
-			promTargets = append(promTargets, mtgs...)
-			ruleGroups = append(ruleGroups, m.GetRules())
+			promTargets[mod.Name()] = append(promTargets[mod.Name()], mtgs...)
+			ruleGroups = append(ruleGroups, m.GetRules(targetGroup.Name))
 			dashboards = append(dashboards, m.GetDashboards()...)
 			maps.Copy(dashboardFiles, m.GetDashboardFiles())
 		}
 		prometheusTargets[targetGroup.Name] = promTargets
+		c = ctx.SetPromRules(c, targetGroup.Name, ruleGroups)
 	}
 
-	c := ctx.SetPromTargets(context.Background(), prometheusTargets)
-	c = ctx.SetPromRules(c, ruleGroups)
+	c = ctx.SetPromTargets(c, prometheusTargets)
 	c = ctx.SetDashboards(c, dashboards)
 	c = ctx.SetDashboardFiles(c, dashboardFiles)
 
@@ -138,7 +143,7 @@ func (d *Deployer) Run() error {
 			return err
 		}
 
-		if targetGroup.Name == "servers" {
+		if targetGroup.Name == "prometheus" {
 			servers := []string{}
 			for host := range inventory.Groups["all"].Hosts {
 				servers = append(servers, host)
@@ -148,6 +153,9 @@ func (d *Deployer) Run() error {
 
 		var pbs = make([]*ansiblemodel.Playbook, 0)
 		for _, mod := range targetGroup.Modules.ModulesConfigs {
+			if !mod.IsEnabled() {
+				continue
+			}
 			m, err := mod.NewModule(modules.ModuleOptions{})
 			if err != nil {
 				return err

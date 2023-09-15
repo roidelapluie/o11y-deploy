@@ -90,46 +90,65 @@ type Module struct {
 }
 
 func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
-	staticConfig := labelsToStaticConfigs(ctx.GetPromTargets(c))
+	scrapeConfigs := []ScrapeConfig{}
+	staticConfigMap := labelsToStaticConfigs(ctx.GetPromTargets(c))
 
-	scrapeConfigs := []*ScrapeConfig{
-		{
-			JobName:        "example",
+	for job, staticConfig := range staticConfigMap {
+		scrapeConfigs = append(scrapeConfigs, ScrapeConfig{
+			JobName:        job,
 			ScrapeInterval: 15 * time.Second,
 			ScrapeTimeout:  10 * time.Second,
 			MetricsPath:    "/metrics",
 			Scheme:         "http",
 			StaticConfigs:  staticConfig,
-		},
+		})
 	}
 
-	rulesFile, err := os.CreateTemp("", "prometheus_*.rules")
+	rulesFiles := []string{}
+
+	rulesMap := ctx.GetPromRules(c)
+	rulesDir, err := os.MkdirTemp("", "prometheus_rules_*")
 	if err != nil {
-		return nil, fmt.Errorf("could not create rules file: %v", err)
+		return nil, fmt.Errorf("could not create rules directory: %v", err)
 	}
 
-	ruleGroups := rulefmt.RuleGroups{
-		Groups: ctx.GetPromRules(c),
-	}
+	for tg, rules := range rulesMap {
+		rulesTgDir := filepath.Join(rulesDir, tg)
+		if err = os.Mkdir(rulesTgDir, 0750); err != nil {
+			return nil, fmt.Errorf("could not create rules subdirectory: %v", err)
+		}
 
-	rulesYaml, err := yaml.Marshal(ruleGroups)
-	if err != nil {
-		return nil, fmt.Errorf("could not marshal rules file: %v", err)
-	}
+		rulesFile, err := os.Create(filepath.Join(rulesTgDir, "prometheus.rules"))
+		if err != nil {
+			return nil, fmt.Errorf("could not create rules file: %v", err)
+		}
 
-	if _, err := rulesFile.Write([]byte(rulesYaml)); err != nil {
-		return nil, fmt.Errorf("could not write rules file: %v", err)
-	}
+		rulesLink := filepath.Join(os.TempDir(), fmt.Sprintf("%v.rules", tg))
+		if _, err := os.Stat(rulesLink); err == nil {
+			// Link exists; delete it so we can relink to the new version
+			os.Remove(rulesLink)
+		}
 
-	rulesLink := filepath.Join(os.TempDir(), "prometheus.rules")
-	if _, err := os.Stat(rulesLink); err == nil {
-		// Link exists; delete it so we can relink to the new version
-		os.Remove(rulesLink)
-	}
+		err = os.Symlink(rulesFile.Name(), rulesLink)
+		if err != nil {
+			return nil, fmt.Errorf("could not link rules directory: %v", err)
+		}
 
-	err = os.Link(rulesFile.Name(), rulesLink)
-	if err != nil {
-		return nil, fmt.Errorf("could not link rules file: %v", err)
+		rulesFiles = append(rulesFiles, rulesLink)
+
+		ruleGroups := rulefmt.RuleGroups{
+			Groups: rules,
+		}
+
+		rulesYaml, err := yaml.Marshal(ruleGroups)
+		if err != nil {
+			return nil, fmt.Errorf("could not marshal rules file: %v", err)
+		}
+
+		if _, err := rulesFile.Write([]byte(rulesYaml)); err != nil {
+			return nil, fmt.Errorf("could not write rules file: %v", err)
+		}
+
 	}
 
 	return &ansible.Playbook{
@@ -138,7 +157,7 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 			"prometheus_version":           m.cfg.PrometheusVersion,
 			"prometheus_scrape_configs":    scrapeConfigs,
 			"prometheus_alert_rules":       []string{},
-			"prometheus_alert_rules_files": []string{rulesLink},
+			"prometheus_alert_rules_files": rulesFiles,
 		},
 		Hosts:  "all",
 		Become: true,
@@ -154,32 +173,34 @@ func (m *Module) HostVars() (map[string]string, error) {
 	return nil, nil
 }
 
-func (m *Module) GetTargets(targets []labels.Labels) ([]labels.Labels, error) {
-	return modules.GetTargets(targets, "9090", "prometheus")
+func (m *Module) GetTargets(targets []labels.Labels, group string) ([]labels.Labels, error) {
+	return modules.GetTargets(targets, "9090", group)
 }
 
-func labelsToStaticConfigs(labelSetList map[string][]labels.Labels) []StaticConfig {
-	staticConfigs := make([]StaticConfig, 0, len(labelSetList))
+func labelsToStaticConfigs(labelSetList map[string]map[string][]labels.Labels) map[string][]StaticConfig {
+	staticConfigsMap := make(map[string][]StaticConfig)
 
 	for _, l := range labelSetList {
-		for _, labelSet := range l {
-			staticConfig := StaticConfig{
-				Targets: make([]string, 0, 1),
-				Labels:  make(map[string]string, len(labelSet)),
-			}
-
-			instance := ""
-			for _, label := range labelSet {
-				if label.Name == model.AddressLabel {
-					instance = label.Value
-				} else {
-					staticConfig.Labels[label.Name] = label.Value
+		for job, k := range l {
+			staticConfigsMap[job] = make([]StaticConfig, 0, len(l))
+			for _, labelSet := range k {
+				staticConfig := StaticConfig{
+					Targets: make([]string, 0, 1),
+					Labels:  make(map[string]string, len(labelSet)),
 				}
+
+				instance := ""
+				for _, label := range labelSet {
+					if label.Name == model.AddressLabel {
+						instance = label.Value
+					} else {
+						staticConfig.Labels[label.Name] = label.Value
+					}
+				}
+				staticConfig.Targets = append(staticConfig.Targets, instance)
+				staticConfigsMap[job] = append(staticConfigsMap[job], staticConfig)
 			}
-			staticConfig.Targets = append(staticConfig.Targets, instance)
-			staticConfigs = append(staticConfigs, staticConfig)
 		}
 	}
-
-	return staticConfigs
+	return staticConfigsMap
 }
