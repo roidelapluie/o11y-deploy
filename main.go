@@ -77,7 +77,19 @@ func main() {
 			os.Exit(1)
 		}
 
-		cmd := exec.Command(filepath.Join(*depsHome, "bin", "ara-manage"), "runserver", cfg.Global.ARAListen)
+		cmd := exec.Command(filepath.Join(*depsHome, "bin", "ara-manage"), "migrate")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Env = os.Environ()
+		cmd.Env = append(cmd.Env, fmt.Sprintf("ARA_DATABASE_NAME=%s", filepath.Join(cfg.Global.DataDir, "ansible.sqlite")))
+
+		err = cmd.Run()
+		if err != nil {
+			logger.Log("msg", "Error running ara", "err", err)
+			os.Exit(1)
+		}
+
+		cmd = exec.Command(filepath.Join(*depsHome, "bin", "ara-manage"), "runserver", cfg.Global.ARAListen)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Env = os.Environ()
