@@ -16,6 +16,7 @@ package ansible
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -89,31 +90,56 @@ func NewRunner(logger log.Logger, cfg *config.Config, debug bool, ansiblePath, d
 }
 
 func (ar *AnsibleRunner) RunPlaybooks(ctx context.Context, playbooks []*ansible.Playbook, extraArgs ...string) error {
+	if len(playbooks) == 0 {
+		return errors.New("No playbooks!")
+	}
 	rolesPath, err := extractGz(roles)
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(rolesPath)
-	fmt.Printf("%v\n", rolesPath)
+	defer func() {
+		if ar.debug {
+			fmt.Printf("DEBUG: Roles kept in %q\n", rolesPath)
+			return
+		}
+		os.RemoveAll(rolesPath)
+	}()
 
 	cfgFile, err := ar.writeConfig(rolesPath)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%v\n", cfgFile)
-	defer os.Remove(cfgFile)
+	defer func() {
+		if ar.debug {
+			fmt.Printf("DEBUG: config kept in %q\n", cfgFile)
+			return
+		}
+		os.Remove(cfgFile)
+	}()
 
 	inventoryFile, err := write(ar.Inventory)
 	if err != nil {
 		return err
 	}
-	defer os.Remove(inventoryFile)
+	defer func() {
+		if ar.debug {
+			fmt.Printf("DEBUG: inventory kept in %q\n", inventoryFile)
+			return
+		}
+		os.Remove(inventoryFile)
+	}()
 
 	playbookFile, err := write(playbooks)
 	if err != nil {
 		return err
 	}
-	defer os.Remove(playbookFile)
+	defer func() {
+		if ar.debug {
+			fmt.Printf("DEBUG: playbook kept in %q\n", playbookFile)
+			return
+		}
+		os.Remove(playbookFile)
+	}()
 
 	args := []string{"-i", inventoryFile, playbookFile}
 	//if len(playbook.Targets) > 0 {

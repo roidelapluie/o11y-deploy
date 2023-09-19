@@ -170,7 +170,10 @@ func (d *Deployer) Run() error {
 		if err != nil {
 			return err
 		}
-		ar.RunPlaybooks(c, pbs)
+		err = ar.RunPlaybooks(c, pbs)
+		if err != nil {
+			return err
+		}
 	}
 
 	level.Info(d.logger).Log("msg", "Deployment done")
