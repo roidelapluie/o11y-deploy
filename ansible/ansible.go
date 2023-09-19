@@ -14,6 +14,7 @@
 package ansible
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
 	"errors"
@@ -42,6 +43,7 @@ type AnsibleRunner struct {
 	Inventory   *ansible.Inventory
 	Config      *config.Config
 	debug       bool
+	araPath     string
 }
 
 func NewRunner(logger log.Logger, cfg *config.Config, debug bool, ansiblePath, depsPath string, inventory *ansible.Inventory) (*AnsibleRunner, error) {
@@ -87,6 +89,30 @@ func NewRunner(logger log.Logger, cfg *config.Config, debug bool, ansiblePath, d
 		Config:      cfg,
 		debug:       debug,
 	}, nil
+}
+
+func (ar *AnsibleRunner) FindARAPath() (string, error) {
+	if ar.araPath != "" {
+		return ar.araPath, nil
+	}
+	cmd := exec.Command(filepath.Join(ar.DepsPath, "bin", "python3"), "-m", "ara.setup.callback_plugins")
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println("Command failed with error:", err)
+		fmt.Println("Stderr:", stderr.String())
+		return "", err
+	}
+	fmt.Println("%s %s %s", filepath.Join(ar.DepsPath, "bin", "python3"), "-m", "ara.setup.callback_plugins")
+	ar.araPath = strings.TrimSpace(stdout.String())
+	if ar.araPath == "" {
+		fmt.Println("Stderr:", stderr.String())
+		return "", errors.New("No ARA Path!")
+	}
+	return ar.araPath, nil
 }
 
 func (ar *AnsibleRunner) RunPlaybooks(ctx context.Context, playbooks []*ansible.Playbook, extraArgs ...string) error {
@@ -162,7 +188,15 @@ func (ar *AnsibleRunner) RunPlaybooks(ctx context.Context, playbooks []*ansible.
 	}
 	cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_CONFIG=%s", cfgFile))
 	if ar.Config.Global.EnableARA {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_CALLBACK_PLUGINS=%s", filepath.Join(ar.DepsPath, "opt", "ansible-venv", "lib", "python3.10", "site-packages", "ara", "plugins", "callback")))
+		araPath, err := ar.FindARAPath()
+		if err != nil {
+			ar.Logger.Log("msg", "Error getting ARA Path", "err", err)
+			return err
+		}
+		if ar.debug {
+			fmt.Printf("ARA Enabled at %q\n", araPath)
+		}
+		cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_CALLBACK_PLUGINS=%s", araPath))
 		cmd.Env = append(cmd.Env, fmt.Sprintf("ARA_DATABASE_NAME=%s", filepath.Join(ar.Config.Global.DataDir, "ansible.sqlite")))
 	}
 
