@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	expectedDepsVersion = "0.0.4"
+	expectedDepsVersion = "0.0.8"
 )
 
 var (
