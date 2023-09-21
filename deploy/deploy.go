@@ -41,11 +41,11 @@ type Deployer struct {
 	cfg          *config.Config
 	homeDeps     string
 	logger       log.Logger
-	ansibleDebug bool
+	ansibleDebug int
 }
 
 // NewDeployer creates a new Deployer with the given configuration and homeDeps.
-func NewDeployer(logger log.Logger, cfg *config.Config, homeDeps string, ansibleDebug bool) (*Deployer, error) {
+func NewDeployer(logger log.Logger, cfg *config.Config, homeDeps string, ansibleDebug int) (*Deployer, error) {
 	d := &Deployer{
 		cfg:          cfg,
 		homeDeps:     homeDeps,

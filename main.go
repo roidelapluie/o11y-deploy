@@ -38,7 +38,7 @@ var (
 	allowDepsDev = kingpin.Flag("allow-deps-dev", "Allow running with 'dev' version of dependencies").Bool()
 	configFile   = kingpin.Flag("config-file", "The path to the configuration file").Default("o11y.yml").String()
 	ara          = kingpin.Flag("ara", "Run the Ara webserver").Bool()
-	ansibleDebug = kingpin.Flag("ansible.debug", "Run ansible in debug mode").Bool()
+	ansibleDebug = kingpin.Flag("ansible.debug", "Run ansible in debug mode").Counter()
 )
 
 func main() {

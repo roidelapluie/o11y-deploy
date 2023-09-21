@@ -154,10 +154,11 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 	return &ansible.Playbook{
 		Name: "Linux",
 		Vars: map[string]interface{}{
-			"prometheus_version":           m.cfg.PrometheusVersion,
-			"prometheus_scrape_configs":    scrapeConfigs,
-			"prometheus_alert_rules":       []string{},
-			"prometheus_alert_rules_files": rulesFiles,
+			"prometheus_version":              m.cfg.PrometheusVersion,
+			"prometheus_scrape_configs":       scrapeConfigs,
+			"prometheus_alert_rules":          []string{},
+			"prometheus_alert_rules_files":    rulesFiles,
+			"prometheus_static_targets_files": []string{},
 		},
 		Hosts:  "all",
 		Become: true,

@@ -42,11 +42,11 @@ type AnsibleRunner struct {
 	DepsPath    string
 	Inventory   *ansible.Inventory
 	Config      *config.Config
-	debug       bool
+	debug       int
 	araPath     string
 }
 
-func NewRunner(logger log.Logger, cfg *config.Config, debug bool, ansiblePath, depsPath string, inventory *ansible.Inventory) (*AnsibleRunner, error) {
+func NewRunner(logger log.Logger, cfg *config.Config, debug int, ansiblePath, depsPath string, inventory *ansible.Inventory) (*AnsibleRunner, error) {
 	i := *inventory
 
 	if _, ok := i.Groups["all"]; !ok {
@@ -106,7 +106,6 @@ func (ar *AnsibleRunner) FindARAPath() (string, error) {
 		fmt.Println("Stderr:", stderr.String())
 		return "", err
 	}
-	fmt.Println("%s %s %s", filepath.Join(ar.DepsPath, "bin", "python3"), "-m", "ara.setup.callback_plugins")
 	ar.araPath = strings.TrimSpace(stdout.String())
 	if ar.araPath == "" {
 		fmt.Println("Stderr:", stderr.String())
@@ -124,19 +123,28 @@ func (ar *AnsibleRunner) RunPlaybooks(ctx context.Context, playbooks []*ansible.
 		return err
 	}
 	defer func() {
-		if ar.debug {
+		if ar.debug > 0 {
 			fmt.Printf("DEBUG: Roles kept in %q\n", rolesPath)
 			return
 		}
 		os.RemoveAll(rolesPath)
 	}()
 
+	homeDir, err := os.MkdirTemp("", "home")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(homeDir)
+	if err := os.MkdirAll(filepath.Join(homeDir, ".ara", "server", "www", "static"), 0777); err != nil {
+		return err
+	}
+
 	cfgFile, err := ar.writeConfig(rolesPath)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if ar.debug {
+		if ar.debug > 0 {
 			fmt.Printf("DEBUG: config kept in %q\n", cfgFile)
 			return
 		}
@@ -148,7 +156,7 @@ func (ar *AnsibleRunner) RunPlaybooks(ctx context.Context, playbooks []*ansible.
 		return err
 	}
 	defer func() {
-		if ar.debug {
+		if ar.debug > 0 {
 			fmt.Printf("DEBUG: inventory kept in %q\n", inventoryFile)
 			return
 		}
@@ -160,11 +168,23 @@ func (ar *AnsibleRunner) RunPlaybooks(ctx context.Context, playbooks []*ansible.
 		return err
 	}
 	defer func() {
-		if ar.debug {
+		if ar.debug > 0 {
 			fmt.Printf("DEBUG: playbook kept in %q\n", playbookFile)
 			return
 		}
 		os.Remove(playbookFile)
+	}()
+
+	callbackFile, err := os.CreateTemp("", "ansible_log.json")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if ar.debug > 0 {
+			fmt.Printf("DEBUG: callback kept in %q\n", callbackFile.Name())
+			return
+		}
+		os.Remove(callbackFile.Name())
 	}()
 
 	args := []string{"-i", inventoryFile, playbookFile}
@@ -178,33 +198,47 @@ func (ar *AnsibleRunner) RunPlaybooks(ctx context.Context, playbooks []*ansible.
 	errWriter := writer.NewBufferedWriter(cmdWriter)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	if !ar.debug {
+	if ar.debug == 0 {
 		cmd.Stdout = cmdWriter
 		cmd.Stderr = errWriter
 	}
 	cmd.Env = os.Environ()
-	if ar.debug {
+	if ar.debug > 2 {
 		cmd.Env = append(cmd.Env, "ANSIBLE_DEBUG=1")
 	}
+	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", homeDir))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_CONFIG=%s", cfgFile))
+	cmd.Env = append(cmd.Env, "ANSIBLE_CALLBACKS_ENABLED=json_logger")
+	cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_JSON_LOG_FILE=%s", callbackFile.Name()))
+
+	callbackPath := filepath.Join(ar.DepsPath, "opt", "o11y", "ansible_callback")
 	if ar.Config.Global.EnableARA {
 		araPath, err := ar.FindARAPath()
 		if err != nil {
 			ar.Logger.Log("msg", "Error getting ARA Path", "err", err)
 			return err
 		}
-		if ar.debug {
+		if ar.debug > 0 {
 			fmt.Printf("ARA Enabled at %q\n", araPath)
 		}
-		cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_CALLBACK_PLUGINS=%s", araPath))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_CALLBACK_PLUGINS=%s:%s", araPath, callbackPath))
 		cmd.Env = append(cmd.Env, fmt.Sprintf("ARA_DATABASE_NAME=%s", filepath.Join(ar.Config.Global.DataDir, "ansible.sqlite")))
+	} else {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_CALLBACK_PLUGINS=%s", callbackPath))
+	}
+	if ar.debug > 1 {
+		for _, s := range cmd.Env {
+			fmt.Println(s)
+		}
 	}
 
 	err = cmd.Run()
 
-	if !ar.debug {
+	if ar.debug == 0 {
 		errWriter.WriteAll(os.Stderr)
 	}
+
+	readAndPrintJSONReport(callbackFile.Name())
 
 	if err != nil {
 		ar.Logger.Log("msg", "Error running playbook", "err", err)
@@ -212,6 +246,7 @@ func (ar *AnsibleRunner) RunPlaybooks(ctx context.Context, playbooks []*ansible.
 	}
 
 	ar.Logger.Log("msg", "Playbook execution completed")
+
 	return nil
 }
 
