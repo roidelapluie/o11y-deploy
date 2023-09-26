@@ -28,8 +28,11 @@ target_groups:
   - name: servers
     modules:
       linux_module:
+        enabled: true
       prometheus_module:
+        enabled: true
       grafana_module:
+        enabled: true
     targets:
       static_confis:
       - targets:
