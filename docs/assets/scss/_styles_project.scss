@@ -2,7 +2,7 @@
   display: none;
 }
 
-p > a, main a, .td-page-meta a {
+p > a, main a, .td-page-meta a, .popover-body a {
   color: $primary !important;
   border-bottom: none;
 }
@@ -12,7 +12,7 @@ p > a:hover, main a:hover {
   border-bottom: 2px solid;
 }
 
-.td-page-meta a:hover {
+.td-page-meta a:hover, .popover-body a:hover {
   color: $secondary !important;
 }
 
