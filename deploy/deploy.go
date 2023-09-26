@@ -143,12 +143,14 @@ func (d *Deployer) Run() error {
 			return err
 		}
 
-		if targetGroup.Name == "prometheus" {
-			servers := []string{}
-			for host := range inventory.Groups["all"].Hosts {
-				servers = append(servers, host)
+		for _, mod := range targetGroup.Modules.ModulesConfigs {
+			if mod.Name() == "prometheus" && mod.IsEnabled() {
+				servers := []string{}
+				for host := range inventory.Groups["all"].Hosts {
+					servers = append(servers, host)
+				}
+				c = ctx.SetPromServers(c, servers)
 			}
-			c = ctx.SetPromServers(c, servers)
 		}
 
 		var pbs = make([]*ansiblemodel.Playbook, 0)
