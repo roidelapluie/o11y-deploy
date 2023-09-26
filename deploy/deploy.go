@@ -172,6 +172,10 @@ func (d *Deployer) Run() error {
 		if err != nil {
 			return err
 		}
+		err = ar.RunPlaybooks(c, ansible.Ping())
+		if err != nil {
+			return err
+		}
 		err = ar.RunPlaybooks(c, pbs)
 		if err != nil {
 			return err

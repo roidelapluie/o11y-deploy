@@ -40,14 +40,8 @@ type Playbook struct {
 }
 
 type Task struct {
-	Name     string                 `yaml:"name"`
-	Command  string                 `yaml:"command,omitempty"`
-	Shell    string                 `yaml:"shell,omitempty"`
-	Script   string                 `yaml:"script,omitempty"`
-	Module   string                 `yaml:"module,omitempty"`
-	Args     map[string]interface{} `yaml:"args,omitempty"`
-	Register string                 `yaml:"register,omitempty"`
-	Roles    []string               `yaml:"roles,omitempty"`
+	Name   string                 `yaml:"name"`
+	Config map[string]interface{} `yaml:",inline"`
 }
 
 type Role struct {

@@ -188,6 +188,9 @@ func (ar *AnsibleRunner) RunPlaybooks(ctx context.Context, playbooks []*ansible.
 	}()
 
 	args := []string{"-i", inventoryFile, playbookFile}
+	for i := 0; i < ar.debug; i++ {
+		args = append(args, "-v")
+	}
 	//if len(playbook.Targets) > 0 {
 	//	args = append(args, "--limit", strings.Join(playbook.Targets, ","))
 	//}
@@ -205,6 +208,9 @@ func (ar *AnsibleRunner) RunPlaybooks(ctx context.Context, playbooks []*ansible.
 	cmd.Env = os.Environ()
 	if ar.debug > 2 {
 		cmd.Env = append(cmd.Env, "ANSIBLE_DEBUG=1")
+	}
+	if ar.debug > 1 {
+		cmd.Env = append(cmd.Env, "CI=true")
 	}
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", homeDir))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_CONFIG=%s", cfgFile))
@@ -230,6 +236,10 @@ func (ar *AnsibleRunner) RunPlaybooks(ctx context.Context, playbooks []*ansible.
 		for _, s := range cmd.Env {
 			fmt.Println(s)
 		}
+	}
+
+	if ar.debug > 0 {
+		fmt.Printf("Args: %q\n", args)
 	}
 
 	err = cmd.Run()
@@ -287,4 +297,18 @@ roles_path = %s
 	level.Debug(ar.Logger).Log("msg", "Ansible config", "content", cfgContent)
 
 	return cfgFile.Name(), nil
+}
+
+func Ping() []*ansible.Playbook {
+	return []*ansible.Playbook{
+		&ansible.Playbook{
+			Hosts:  "all",
+			Become: true,
+			Tasks: []ansible.Task{
+				{
+					Config: map[string]interface{}{"ansible.builtin.ping": nil},
+				},
+			},
+		},
+	}
 }
