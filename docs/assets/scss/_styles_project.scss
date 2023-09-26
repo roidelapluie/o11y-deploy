@@ -1,0 +1,21 @@
+.td-navbar .navbar-brand__name {
+  display: none;
+}
+
+p > a, main a, .td-page-meta a {
+  color: $primary !important;
+  border-bottom: none;
+}
+
+p > a:hover, main a:hover {
+  color: $primary !important;
+  border-bottom: 2px solid;
+}
+
+.td-page-meta a:hover {
+  color: $secondary !important;
+}
+
+.td-toc #TableOfContents a:hover, .td-sidebar-nav a:hover {
+  color: $primary !important;
+}
