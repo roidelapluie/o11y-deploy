@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/prometheus/common/model"
@@ -103,6 +104,10 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 			StaticConfigs:  staticConfig,
 		})
 	}
+
+	sort.Slice(scrapeConfigs, func(i, j int) bool {
+		return scrapeConfigs[i].JobName < scrapeConfigs[j].JobName
+	})
 
 	rulesFiles := []string{}
 
