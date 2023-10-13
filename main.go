@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	expectedDepsVersion = "0.0.10"
+	expectedDepsVersion = "0.0.12"
 )
 
 var (
@@ -39,6 +39,7 @@ var (
 	configFile   = kingpin.Flag("config-file", "The path to the configuration file").Default("o11y.yml").String()
 	ara          = kingpin.Flag("ara", "Run the Ara webserver").Bool()
 	ansibleDebug = kingpin.Flag("ansible.debug", "Run ansible in debug mode").Counter()
+	modules      = kingpin.Flag("module", "Only run select modules").Strings()
 )
 
 func main() {
@@ -110,7 +111,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = deployer.Run(); err != nil {
+	if err = deployer.Run(*modules); err != nil {
 		fmt.Printf("Error running deployer: %v\n", err)
 		os.Exit(1)
 	}

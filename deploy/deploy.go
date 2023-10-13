@@ -56,7 +56,7 @@ func NewDeployer(logger log.Logger, cfg *config.Config, homeDeps string, ansible
 }
 
 // Run executes the deployment process and returns an error if anything goes wrong.
-func (d *Deployer) Run() error {
+func (d *Deployer) Run(enabledModules []string) error {
 	// Validate the configuration before proceeding with the deployment
 	err := d.validateConfig()
 	if err != nil {
@@ -157,6 +157,18 @@ func (d *Deployer) Run() error {
 		for _, mod := range targetGroup.Modules.ModulesConfigs {
 			if !mod.IsEnabled() {
 				continue
+			}
+			if len(enabledModules) > 0 {
+				var found bool
+				for _, n := range enabledModules {
+					if mod.Name() == n {
+						found = true
+						break
+					}
+				}
+				if !found {
+					continue
+				}
 			}
 			m, err := mod.NewModule(modules.ModuleOptions{})
 			if err != nil {
