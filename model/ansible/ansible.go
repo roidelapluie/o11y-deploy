@@ -23,7 +23,7 @@ type Group struct {
 }
 
 type Host struct {
-	Variables map[string]interface{} `yaml:"host_var,omitempty"`
+	Variables map[string]interface{} `yaml:",inline"`
 }
 
 type Hosts struct {

@@ -103,7 +103,7 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 					"basic_auth": false,
 				},
 			},
-			"grafana_dashboards":     ctx.GetDashboards(c),
+			"grafana_dashboards":     []string{}, //  ctx.GetDashboards(c),
 			"grafana_dashboards_dir": dashboardsDir,
 			"grafana_metrics": map[string]interface{}{
 				"enabled": true,
@@ -121,6 +121,6 @@ func (m *Module) GetTargets(labels []labels.Labels, group string) ([]labels.Labe
 	return modules.GetTargets(labels, "3000", group)
 }
 
-func (m *Module) HostVars() (map[string]string, error) {
+func (m *Module) HostVars(target labels.Labels, group string) (map[string]interface{}, error) {
 	return nil, nil
 }

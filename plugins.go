@@ -20,5 +20,6 @@ import (
 
 	_ "github.com/roidelapluie/o11y-deploy/modules/grafana"
 	_ "github.com/roidelapluie/o11y-deploy/modules/linux"
+	_ "github.com/roidelapluie/o11y-deploy/modules/portal"
 	_ "github.com/roidelapluie/o11y-deploy/modules/prometheus"
 )

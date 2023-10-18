@@ -18,6 +18,7 @@ import (
 
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/model/rulefmt"
+	"github.com/roidelapluie/o11y-deploy/modules"
 )
 
 type key int
@@ -29,6 +30,8 @@ const (
 	promServers           key = iota
 	grafanaDashboards     key = iota
 	grafanaDashboardFiles key = iota
+	dataDir               key = iota
+	reverseProxyEntries   key = iota
 )
 
 func GetPromTargets(ctx context.Context) map[string]map[string][]labels.Labels {
@@ -90,6 +93,10 @@ func SetDashboards(ctx context.Context, dashboards []map[string]interface{}) con
 	return context.WithValue(ctx, grafanaDashboards, dashboards)
 }
 
+func SetDashboardFiles(ctx context.Context, dashboards map[string][]byte) context.Context {
+	return context.WithValue(ctx, grafanaDashboardFiles, dashboards)
+}
+
 // GetDashboardFiles gets Grafana dashboard files from the context
 func GetDashboardFiles(ctx context.Context) map[string][]byte {
 	dashboards, ok := ctx.Value(grafanaDashboardFiles).(map[string][]byte)
@@ -99,7 +106,27 @@ func GetDashboardFiles(ctx context.Context) map[string][]byte {
 	return dashboards
 }
 
-// SetDashboardFiles adds Grafana dashboard files to the Context
-func SetDashboardFiles(ctx context.Context, dashboards map[string][]byte) context.Context {
-	return context.WithValue(ctx, grafanaDashboardFiles, dashboards)
+func SetDatadir(ctx context.Context, dir string) context.Context {
+	return context.WithValue(ctx, dataDir, dir)
+}
+
+// GetDatadir gets data dir from the context
+func GetDatadir(ctx context.Context) string {
+	dir, ok := ctx.Value(dataDir).(string)
+	if !ok {
+		return ""
+	}
+	return dir
+}
+
+func SetReverseProxyEntries(ctx context.Context, entries []modules.ReverseProxyEntry) context.Context {
+	return context.WithValue(ctx, reverseProxyEntries, entries)
+}
+
+func GetReverseProxyEntries(ctx context.Context) []modules.ReverseProxyEntry {
+	entries, ok := ctx.Value(reverseProxyEntries).([]modules.ReverseProxyEntry)
+	if !ok {
+		return nil
+	}
+	return entries
 }

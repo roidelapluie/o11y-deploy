@@ -93,6 +93,6 @@ func (m *Module) GetTargets(labels []labels.Labels, group string) ([]labels.Labe
 	return modules.GetTargets(labels, "9100", group)
 }
 
-func (m *Module) HostVars() (map[string]string, error) {
+func (m *Module) HostVars(target labels.Labels, group string) (map[string]interface{}, error) {
 	return nil, nil
 }

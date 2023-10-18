@@ -66,6 +66,7 @@ func (d *Deployer) Run(enabledModules []string) error {
 	level.Debug(d.logger).Log("msg", "Starting deployment...")
 
 	c := context.Background()
+	c = ctx.SetDatadir(c, d.cfg.Global.DataDir)
 
 	// Check if the directory already exists
 	if _, err := os.Stat(d.cfg.Global.DataDir); os.IsNotExist(err) {
@@ -83,6 +84,7 @@ func (d *Deployer) Run(enabledModules []string) error {
 	ruleGroups := []rulefmt.RuleGroup{}
 	dashboards := []map[string]interface{}{}
 	dashboardFiles := make(map[string][]byte)
+	reverseProxyEntries := make([]modules.ReverseProxyEntry, 0)
 	lb := labels.NewBuilder(labels.EmptyLabels())
 	for _, targetGroup := range d.cfg.TargetGroups {
 		tgs := make([]labels.Labels, 0)
@@ -125,6 +127,13 @@ func (d *Deployer) Run(enabledModules []string) error {
 			promTargets[mod.Name()] = append(promTargets[mod.Name()], mtgs...)
 			ruleGroups = append(ruleGroups, m.GetRules(targetGroup.Name))
 			dashboards = append(dashboards, m.GetDashboards()...)
+			if rp, ok := m.(modules.ReverseProxiedModule); ok {
+				newEntries, err := rp.ReverseProxy(tgs, targetGroup.Name)
+				if err != nil {
+					return err
+				}
+				reverseProxyEntries = append(reverseProxyEntries, newEntries...)
+			}
 			maps.Copy(dashboardFiles, m.GetDashboardFiles())
 		}
 		prometheusTargets[targetGroup.Name] = promTargets
@@ -134,6 +143,7 @@ func (d *Deployer) Run(enabledModules []string) error {
 	c = ctx.SetPromTargets(c, prometheusTargets)
 	c = ctx.SetDashboards(c, dashboards)
 	c = ctx.SetDashboardFiles(c, dashboardFiles)
+	c = ctx.SetReverseProxyEntries(c, reverseProxyEntries)
 
 	for _, targetGroup := range d.cfg.TargetGroups {
 		tgs, _ := moduleTargets[targetGroup.Name]
@@ -150,6 +160,19 @@ func (d *Deployer) Run(enabledModules []string) error {
 					servers = append(servers, host)
 				}
 				c = ctx.SetPromServers(c, servers)
+			}
+		}
+		for _, mod := range targetGroup.Modules.ModulesConfigs {
+			for _, t := range tgs {
+				m, err := mod.NewModule(modules.ModuleOptions{})
+				if err != nil {
+					return err
+				}
+				vars, err := m.HostVars(t, targetGroup.Name)
+				if err != nil {
+					return err
+				}
+				addHostVars(inventory, t, vars)
 			}
 		}
 
@@ -274,4 +297,18 @@ func generateInventory(tgs []labels.Labels) (*ansiblemodel.Inventory, error) {
 	}
 
 	return &inventory, nil
+}
+
+func addHostVars(inventory *ansiblemodel.Inventory, tg labels.Labels, vars map[string]interface{}) error {
+	if tg.IsEmpty() {
+		return nil
+	}
+	name := tg.Get(model.AddressLabel)
+	if name == "" {
+		return nil
+	}
+	for k, v := range vars {
+		inventory.Groups["all"].Hosts[name].Variables[k] = v
+	}
+	return nil
 }

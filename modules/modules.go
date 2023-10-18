@@ -15,6 +15,7 @@ package modules
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"net"
 	"reflect"
@@ -30,7 +31,7 @@ import (
 // Module is the interface for modules.
 type Module interface {
 	Playbook(context.Context) (*ansible.Playbook, error)
-	HostVars() (map[string]string, error)
+	HostVars(target labels.Labels, group string) (map[string]interface{}, error)
 	GetTargets([]labels.Labels, string) ([]labels.Labels, error)
 	GetRules(string) rulefmt.RuleGroup
 	GetDashboards() []map[string]interface{}
@@ -115,4 +116,48 @@ func GetTargets(targets []labels.Labels, port, group string) ([]labels.Labels, e
 		promTargets = append(promTargets, lbs.Labels(labels.EmptyLabels()))
 	}
 	return promTargets, nil
+}
+
+// GetReverseProxy transforms targets into reverse proxy entries
+func GetReverseProxy(targets []labels.Labels, port, name, prefix, group string) ([]ReverseProxyEntry, error) {
+	entries := make([]ReverseProxyEntry, len(targets))
+	for i, target := range targets {
+		t := target.Copy()
+		addr := t.Get(model.AddressLabel)
+		if addr == "" {
+			return nil, fmt.Errorf("__address__ label not found in label set")
+		}
+		host, _, err := net.SplitHostPort(string(addr))
+		if err != nil {
+			host = string(addr)
+		}
+		ename := fmt.Sprintf("%s on %s", name, host)
+		entries[i] = ReverseProxyEntry{
+			Name:   name,
+			URL:    fmt.Sprintf("http://%s", net.JoinHostPort(host, port)),
+			Prefix: prefix + "/" + HashString(ename),
+		}
+
+	}
+	return entries, nil
+}
+
+func GetReverseProxyAddress(target labels.Labels, name, prefix, group string) (string, error) {
+	t := target.Copy()
+	addr := t.Get(model.AddressLabel)
+	if addr == "" {
+		return "", fmt.Errorf("__address__ label not found in label set")
+	}
+	host, _, err := net.SplitHostPort(string(addr))
+	if err != nil {
+		host = string(addr)
+	}
+	ename := fmt.Sprintf("%s on %s", name, host)
+	return "{{o11y_portal_address|default(\"\")}}" + prefix + "/" + HashString(ename), nil
+}
+
+func HashString(s string) string {
+	h := sha256.New()
+	h.Write([]byte(s))
+	return fmt.Sprintf("%x", h.Sum(nil))[:20]
 }

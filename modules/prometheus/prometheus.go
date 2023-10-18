@@ -164,6 +164,7 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 			"prometheus_alert_rules":          []string{},
 			"prometheus_alert_rules_files":    rulesFiles,
 			"prometheus_static_targets_files": []string{},
+			"prometheus_web_external_url":     "{{o11y_prometheus_external_address}}",
 		},
 		Hosts:  "all",
 		Become: true,
@@ -175,12 +176,22 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 	}, nil
 }
 
-func (m *Module) HostVars() (map[string]string, error) {
-	return nil, nil
+func (m *Module) HostVars(target labels.Labels, group string) (map[string]interface{}, error) {
+	addr, err := modules.GetReverseProxyAddress(target, m.cfg.Name(), "/prometheus", group)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{
+		"o11y_prometheus_external_address": addr,
+	}, nil
 }
 
 func (m *Module) GetTargets(targets []labels.Labels, group string) ([]labels.Labels, error) {
 	return modules.GetTargets(targets, "9090", group)
+}
+
+func (m *Module) ReverseProxy(targets []labels.Labels, group string) ([]modules.ReverseProxyEntry, error) {
+	return modules.GetReverseProxy(targets, "9090", m.cfg.Name(), "/prometheus", group)
 }
 
 func labelsToStaticConfigs(labelSetList map[string]map[string][]labels.Labels) map[string][]StaticConfig {
