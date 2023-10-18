@@ -50,9 +50,10 @@
 		authenticate with myportal
 	}
 {% for entry in o11y_proxy_entries %}
-    route {{ entry.prefix }}/* {
+    route {{ entry.prefix }}* {
         authorize with users_policy
         reverse_proxy {{ entry.url }}
     }
 {% endfor %}
+    redir / /auth/
 }
