@@ -90,7 +90,27 @@ type Module struct {
 func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 	users := m.cfg.Users
 
-	if len(m.cfg.Users) == 0 {
+	var admin bool
+	for i, user := range users {
+		cost, err := bcrypt.Cost([]byte(user.BcryptPassword))
+		if err != nil {
+			return nil, fmt.Errorf("Error extracting cost for user %s: %v\n", user.Username, err)
+		}
+		if user.Role == "admin" {
+			admin = true
+		}
+		users[i].BcryptCost = cost
+		em := strings.Split(users[i].Email, "@")
+		if len(em) > 1 {
+			users[i].Domain = em[1]
+		}
+		users[i].UUID = uuid.NewSHA1(uuid.NameSpaceDNS, []byte(user.Username)).String()
+		if users[i].Role == "" {
+			users[i].Role = "user"
+		}
+	}
+
+	if !admin {
 		dataDir := ctx.GetDatadir(c)
 		if dataDir == "" {
 			return nil, errors.New("Data directory not found")
@@ -102,32 +122,12 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 		if pw != "" {
 			fmt.Printf("webadmin password is %s\n", pw)
 		}
-		users = []User{
-			{
-				Username:       "webadmin",
-				BcryptPassword: hash,
-				Email:          "admin@localhost",
-				Role:           "admin",
-			},
-		}
-
-	}
-
-	for i, user := range users {
-		cost, err := bcrypt.Cost([]byte(user.BcryptPassword))
-		if err != nil {
-			fmt.Printf("Error extracting cost for user %s: %v\n", user.Username, err)
-			continue // Skip this user and continue with the next
-		}
-		users[i].BcryptCost = cost
-		em := strings.Split(users[i].Email, "@")
-		if len(em) > 1 {
-			users[i].Domain = em[1]
-		}
-		users[i].UUID = uuid.NewSHA1(uuid.NameSpaceDNS, []byte(user.Username)).String()
-		if users[i].Role == "" {
-			users[i].Role = "user"
-		}
+		users = append(users, User{
+			Username:       "webadmin",
+			BcryptPassword: hash,
+			Email:          "admin@localhost",
+			Role:           "admin",
+		})
 	}
 
 	return &ansible.Playbook{
