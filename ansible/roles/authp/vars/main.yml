@@ -1,0 +1,32 @@
+---
+go_arch_map:
+  i386: '386'
+  x86_64: 'amd64'
+  aarch64: 'arm64'
+  armv7l: 'armv7'
+  armv6l: 'armv6'
+
+go_arch: "{{ go_arch_map[ansible_architecture] | default(ansible_architecture) }}"
+_authp_repo: "authp/authp"
+
+
+_authp_config:
+  version: "1.0.41"
+  policy:
+    password:
+      keep_versions: 10
+      min_length: 8
+      max_length: 128
+      require_uppercase: false
+      require_lowercase: false
+      require_number: false
+      require_non_alpha_numeric: false
+      block_reuse: false
+      block_password_change: false
+    user:
+      min_length: 3
+      max_length: 50
+      allow_non_alpha_numeric: false
+      allow_uppercase: false
+  revision: 2
+  last_modified: "2023-10-11T12:31:37.188848043Z"

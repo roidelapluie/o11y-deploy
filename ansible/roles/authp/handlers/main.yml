@@ -1,0 +1,10 @@
+---
+- name: Restart authp
+  listen: "restart authp"
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+    name: authp
+    state: restarted
+  when:
+    - not ansible_check_mode

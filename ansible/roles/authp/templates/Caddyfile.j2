@@ -1,0 +1,58 @@
+{
+	auto_https off
+	debug
+
+	security {
+		local identity store localdb {
+			realm local
+			path {{ authp_data_dir }}/users.json
+		}
+
+		authentication portal myportal {
+			crypto default token lifetime 3600
+			cookie insecure on
+			enable identity store localdb
+			transform user {
+				match origin local
+				action add role authp/user
+			}
+			ui {
+				logo url https://o11y.support/assets/images/56733011f362662ed0b6fbbe7443e6bb.png
+				custom css path {{ authp_data_dir }}/style.css
+				links {
+				{% for entry in o11y_proxy_entries %}
+				"{{ entry.name }}" {{ entry.prefix }} icon "las la-link"
+				{% endfor %}
+				}
+			}
+		}
+
+		authorization policy users_policy {
+			# disable auth redirect
+			set auth url /auth
+			allow roles authp/user
+			acl rule {
+				comment allow guests only
+				match role guest authp/user
+				allow stop log info
+			}
+			acl rule {
+				comment default deny
+				match any
+				deny log warn
+			}
+		}
+	}
+}
+
+:80 {
+	route /auth* {
+		authenticate with myportal
+	}
+{% for entry in o11y_proxy_entries %}
+    route {{ entry.prefix }}/* {
+        authorize with users_policy
+        reverse_proxy {{ entry.url }}
+    }
+{% endfor %}
+}

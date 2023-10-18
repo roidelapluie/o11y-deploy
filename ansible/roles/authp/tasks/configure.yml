@@ -1,0 +1,87 @@
+---
+- name: Copy the authp systemd service file
+  ansible.builtin.template:
+    src: authp.service.j2
+    dest: /etc/systemd/system/authp.service
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart authp
+
+- name: Configure authp
+  block:
+
+    - name: Prepare user data for _authp_config
+      set_fact:
+        prepared_user:
+            'id': "{{item.uuid}}"
+            'username': "{{item.username}}"
+            'email_addresses': [{
+              'address': "{{item.email}}",
+              'domain': "{{item.email_domain}}"
+            }]
+            'email_address':
+              'address': "{{item.email}}"
+              'domain': "{{item.email_domain}}"
+            'passwords': [{
+              'purpose': 'generic',
+              'algorithm': 'bcrypt',
+              'hash': "{{item.bcrypt_password}}",
+              'expired_at': '0001-01-01T00:00:00Z',
+              'created_at': '2023-01-01T00:00:00Z',
+              'disabled_at': '0001-01-01T00:00:00Z',
+            }]
+            "roles": [{
+                "name": "{{item.role}}",
+                "organization": "authp"
+              }]
+
+      loop: "{{ authp_users }}"
+      loop_control:
+        loop_var: item
+      register: prepared_users_list
+
+    - name: Collect prepared user data
+      set_fact:
+        prepared_users: "{{ prepared_users_list.results | map(attribute='ansible_facts.prepared_user') | list }}"
+
+    - name: Update _authp_config with prepared user data
+      set_fact:
+        updated_authp_config: >-
+          {{
+            _authp_config | combine({'users': prepared_users}, recursive=True)
+          }}
+
+    - name: Write updated _authp_config to JSON file
+      copy:
+        content: "{{ updated_authp_config | to_nice_json }}"
+        dest: "{{ authp_data_dir }}/users.json"
+
+    - name: Write custom CSS
+      copy:
+        dest: "{{ authp_data_dir }}/style.css"
+        content: |
+          .bg-blue-100 {
+             background-color:rgb(44, 45, 53)!important;
+          }
+          bookmarks {display:none;}
+          .app-btn-pri{
+            background-color:#ff004b!important;
+          }
+
+    - name: Create authp config directory
+      ansible.builtin.file:
+        path: "/etc/authp"
+        state: directory
+        owner: root
+        group: root
+        mode: u+rwX,g+rwX,o=rX
+
+    - name: Copy the authp config file
+      ansible.builtin.template:
+        src: Caddyfile.j2
+        dest: /etc/authp/Caddyfile
+        owner: root
+        group: root
+        mode: 0644
+      notify: restart authp

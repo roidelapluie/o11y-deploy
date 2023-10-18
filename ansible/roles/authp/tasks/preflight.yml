@@ -1,0 +1,43 @@
+---
+- name: Assert usage of systemd as an init system
+  ansible.builtin.assert:
+    that: ansible_service_mgr == 'systemd'
+    msg: "This role only works with systemd"
+
+- name: Check if authp is installed
+  ansible.builtin.stat:
+    path: "{{ authp_binary_install_dir }}/authp"
+  register: __authp_is_installed
+  check_mode: false
+  tags:
+    - authp_install
+
+- name: Gather package facts
+  ansible.builtin.package_facts:
+  when: "not 'packages' in ansible_facts"
+
+- name: Gather currently installed authp version (if any)
+  ansible.builtin.command: "{{ authp_binary_install_dir }}/authp version"
+  changed_when: false
+  register: __authp_current_version_output
+  check_mode: false
+  when: __authp_is_installed.stat.exists
+  tags:
+    - authp_install
+
+- name: Get authp binary checksum
+  when: authp_binary_local_dir | length == 0
+  block:
+    - name: Get checksum list from github
+      ansible.builtin.set_fact:
+        __authp_checksums: "{{ lookup('url', authp_checksums_url, wantlist=True) | list }}"
+      run_once: true
+      until: __authp_checksums is search('linux_' + go_arch + '.tar.gz')
+      retries: 10
+
+    - name: "Get checksum for {{ go_arch }}"
+      ansible.builtin.set_fact:
+        __authp_checksum: "{{ item.split(' ')[0] }}"
+      with_items: "{{ __authp_checksums }}"
+      when:
+        - "('linux_' + go_arch + '.tar.gz') in item"

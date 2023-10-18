@@ -14,7 +14,8 @@ roles:
 	./tar_directories.sh ansible/roles.tar.gz \
 		ansible/prometheus-community/roles/node_exporter \
 		ansible/prometheus-community/roles/prometheus \
-		ansible/grafana-ansible-collection/roles/grafana
+		ansible/grafana-ansible-collection/roles/grafana \
+		ansible/roles/authp
 
 build-frontend:
 	cd frontend/ui && npm install && npm run build

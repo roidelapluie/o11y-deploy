@@ -1,0 +1,36 @@
+{{ ansible_managed | comment }}
+
+[Unit]
+Description=Authp
+After=network-online.target
+
+[Service]
+Type=simple
+User={{ authp_system_user }}
+Group={{ authp_system_group }}
+ExecStart={{ authp_binary_install_dir }}/authp run --config /etc/authp/Caddyfile
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+SyslogIdentifier=authp
+Restart=always
+RestartSec=1
+StartLimitInterval=0
+
+{% set protect_home = 'yes' %}
+{% for m in ansible_mounts if m.mount.startswith('/home') %}
+{%   set protect_home = 'read-only' %}
+{% endfor %}
+ProtectHome={{ protect_home }}
+NoNewPrivileges=yes
+
+{% if (ansible_facts.packages.systemd | first).version is version('232', '>=') %}
+ProtectSystem=strict
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=yes
+{% else %}
+ProtectSystem=full
+{% endif %}
+
+[Install]
+WantedBy=multi-user.target

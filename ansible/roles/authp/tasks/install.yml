@@ -1,0 +1,80 @@
+---
+- name: Create the authp group
+  ansible.builtin.group:
+    name: "{{ authp_system_group }}"
+    state: present
+    system: true
+  when: authp_system_group != "root"
+
+- name: Create the authp user
+  ansible.builtin.user:
+    name: "{{ authp_system_user }}"
+    groups: "{{ authp_system_group }}"
+    append: true
+    shell: /usr/sbin/nologin
+    system: true
+    create_home: false
+    home: /
+  when: authp_system_user != "root"
+
+- name: Discover latest version
+  when: authp_binary_local_dir | length == 0
+  block:
+
+    - name: Download authp binary to local folder
+      become: false
+      ansible.builtin.get_url:
+        url: "{{ authp_binary_url }}"
+        dest: "/tmp/authp_{{ authp_version }}_linux_{{ go_arch }}.tar.gz"
+        checksum: "sha256:{{ __authp_checksum }}"
+        mode: '0644'
+      register: _download_binary
+      until: _download_binary is succeeded
+      retries: 5
+      delay: 2
+      delegate_to: localhost
+      check_mode: false
+
+    - name: Unpack authp binary
+      become: false
+      ansible.builtin.file:
+        path: "/tmp/authp_{{ authp_version }}"
+        state: directory
+      delegate_to: localhost
+      check_mode: false
+
+    - name: Unpack authp binary
+      become: false
+      ansible.builtin.unarchive:
+        src: "/tmp/authp_{{ authp_version }}_linux_{{ go_arch }}.tar.gz"
+        dest: "/tmp/authp_{{ authp_version }}"
+        creates: "/tmp/authp_{{ authp_version }}/bin/authp"
+      delegate_to: localhost
+      check_mode: false
+
+    - name: Propagate authp binaries
+      ansible.builtin.copy:
+        src: "/tmp/authp_{{ authp_version }}/bin/authp"
+        dest: "{{ authp_binary_install_dir }}/authp"
+        mode: 0755
+        owner: root
+        group: root
+      notify: restart authp
+      when: not ansible_check_mode
+
+- name: Propagate locally distributed authp binary
+  ansible.builtin.copy:
+    src: "{{ authp_binary_local_dir }}/authp"
+    dest: "{{ authp_binary_install_dir }}/authp"
+    mode: 0755
+    owner: root
+    group: root
+  when: authp_binary_local_dir | length > 0
+  notify: restart authp
+
+- name: create authp data directory
+  ansible.builtin.file:
+      path: "{{ authp_data_dir }}"
+      state: directory
+      owner: "{{ authp_system_user }}"
+      group: "{{ authp_system_group }}"
