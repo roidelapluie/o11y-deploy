@@ -6,8 +6,9 @@ all: roles
 
 init_roles:
 	cd ansible \
-	    && git clone https://github.com/roidelapluie/ansible prometheus-community \
-		&& git clone https://github.com/grafana/grafana-ansible-collection
+	    && (git clone https://github.com/roidelapluie/ansible prometheus-community || (cd prometheus-community && git pull) ) \
+		&& (git clone https://github.com/grafana/grafana-ansible-collection || (cd grafana-ansible-collection && git pull)) \
+		&& cd grafana-ansible-collection && git reset --hard 2.2.3
 
 # target for creating the tar.gz file
 roles:
