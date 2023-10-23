@@ -15,25 +15,10 @@ package linux
 
 import _ "embed"
 
-//go:embed dashboards/15172_rev6.json
+//go:embed dashboards/Linux.json
 var nodeDashboard []byte
 
 // GetDashboards returns pointers to grafana.com dashboards
-func (m *Module) GetDashboards() []map[string]interface{} {
-	return []map[string]interface{}{
-		{
-			"dashboard_id": 1860,
-			"revision_id":  31,
-			"datasource":   "prometheus",
-		},
-	}
-}
-
-// GetDashboardFiles returns included dashboard files
-func (m *Module) GetDashboardFiles() map[string][]byte {
-	dashboards := make(map[string][]byte)
-
-	dashboards["15172_rev6.json"] = nodeDashboard
-
-	return dashboards
+func (m *Module) GetDashboards() [][]byte {
+	return [][]byte{nodeDashboard}
 }

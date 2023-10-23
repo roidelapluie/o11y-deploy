@@ -34,8 +34,7 @@ type Module interface {
 	HostVars(target labels.Labels, group string) (map[string]interface{}, error)
 	GetTargets([]labels.Labels, string) ([]labels.Labels, error)
 	GetRules(string) rulefmt.RuleGroup
-	GetDashboards() []map[string]interface{}
-	GetDashboardFiles() map[string][]byte
+	GetDashboards() [][]byte
 }
 
 // ModuleOptions provides options for a Module.

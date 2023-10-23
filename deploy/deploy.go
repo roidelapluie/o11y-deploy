@@ -33,8 +33,8 @@ import (
 	"github.com/roidelapluie/o11y-deploy/config"
 	ansiblemodel "github.com/roidelapluie/o11y-deploy/model/ansible"
 	"github.com/roidelapluie/o11y-deploy/model/ctx"
+	"github.com/roidelapluie/o11y-deploy/model/promserver"
 	"github.com/roidelapluie/o11y-deploy/modules"
-	"golang.org/x/exp/maps"
 )
 
 type Deployer struct {
@@ -82,8 +82,9 @@ func (d *Deployer) Run(enabledModules []string) error {
 	moduleTargets := make(map[string][]labels.Labels)
 	prometheusTargets := make(map[string]map[string][]labels.Labels)
 	ruleGroups := []rulefmt.RuleGroup{}
-	dashboards := []map[string]interface{}{}
+	dashboards := [][]byte{}
 	dashboardFiles := make(map[string][]byte)
+	promServers := []promserver.PrometheusServer{}
 	reverseProxyEntries := make([]modules.ReverseProxyEntry, 0)
 	lb := labels.NewBuilder(labels.EmptyLabels())
 	for _, targetGroup := range d.cfg.TargetGroups {
@@ -134,12 +135,19 @@ func (d *Deployer) Run(enabledModules []string) error {
 				}
 				reverseProxyEntries = append(reverseProxyEntries, newEntries...)
 			}
-			maps.Copy(dashboardFiles, m.GetDashboardFiles())
+			if rp, ok := m.(modules.PrometheusModule); ok {
+				ps, err := rp.GetPrometheusServers(tgs, targetGroup.Name)
+				if err != nil {
+					return err
+				}
+				promServers = append(promServers, ps...)
+			}
 		}
 		prometheusTargets[targetGroup.Name] = promTargets
 		c = ctx.SetPromRules(c, targetGroup.Name, ruleGroups)
 	}
 
+	c = ctx.SetPromServers(c, promServers)
 	c = ctx.SetPromTargets(c, prometheusTargets)
 	c = ctx.SetDashboards(c, dashboards)
 	c = ctx.SetDashboardFiles(c, dashboardFiles)
@@ -153,15 +161,6 @@ func (d *Deployer) Run(enabledModules []string) error {
 			return err
 		}
 
-		for _, mod := range targetGroup.Modules.ModulesConfigs {
-			if mod.Name() == "prometheus" && mod.IsEnabled() {
-				servers := []string{}
-				for host := range inventory.Groups["all"].Hosts {
-					servers = append(servers, host)
-				}
-				c = ctx.SetPromServers(c, servers)
-			}
-		}
 		for _, mod := range targetGroup.Modules.ModulesConfigs {
 			for _, t := range tgs {
 				m, err := mod.NewModule(modules.ModuleOptions{})

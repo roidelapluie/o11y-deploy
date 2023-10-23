@@ -26,6 +26,7 @@ import (
 	"github.com/prometheus/prometheus/model/rulefmt"
 	"github.com/roidelapluie/o11y-deploy/model/ansible"
 	"github.com/roidelapluie/o11y-deploy/model/ctx"
+	"github.com/roidelapluie/o11y-deploy/model/promserver"
 	"github.com/roidelapluie/o11y-deploy/modules"
 	"gopkg.in/yaml.v3"
 )
@@ -192,6 +193,21 @@ func (m *Module) GetTargets(targets []labels.Labels, group string) ([]labels.Lab
 
 func (m *Module) ReverseProxy(targets []labels.Labels, group string) ([]modules.ReverseProxyEntry, error) {
 	return modules.GetReverseProxy(targets, "9090", m.cfg.Name(), "/prometheus", group)
+}
+
+func (m *Module) GetPrometheusServers(targets []labels.Labels, group string) ([]promserver.PrometheusServer, error) {
+	rp, err := modules.GetReverseProxy(targets, "9090", m.cfg.Name(), "/prometheus", group)
+	if err != nil {
+		return nil, err
+	}
+	promservers := []promserver.PrometheusServer{}
+	for _, r := range rp {
+		promservers = append(promservers, promserver.PrometheusServer{
+			Name: r.Name,
+			URL:  r.URL + r.Prefix,
+		})
+	}
+	return promservers, nil
 }
 
 func labelsToStaticConfigs(labelSetList map[string]map[string][]labels.Labels) map[string][]StaticConfig {

@@ -14,17 +14,6 @@
 package prometheus
 
 // GetDashboards returns pointers to grafana.com dashboards
-func (m *Module) GetDashboards() []map[string]interface{} {
-	return []map[string]interface{}{
-		{
-			"dashboard_id": 3662,
-			"revision_id":  2,
-			"datasource":   "prometheus",
-		},
-	}
-}
-
-// GetDashboardFiles returns included dashboard files
-func (m *Module) GetDashboardFiles() map[string][]byte {
-	return make(map[string][]byte)
+func (m *Module) GetDashboards() [][]byte {
+	return nil
 }

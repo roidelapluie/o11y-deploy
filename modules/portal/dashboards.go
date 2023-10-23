@@ -13,12 +13,7 @@
 
 package portal
 
-// GetDashboards returns pointers to grafana.com dashboards
-func (m *Module) GetDashboards() []map[string]interface{} {
-	return []map[string]interface{}{}
-}
-
-// GetDashboardFiles returns included dashboard files
-func (m *Module) GetDashboardFiles() map[string][]byte {
-	return make(map[string][]byte)
+// GetDashboards returns dashboards.
+func (m *Module) GetDashboards() [][]byte {
+	return nil
 }

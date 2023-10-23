@@ -8,4 +8,5 @@ import (
 
 func TestInterface(*testing.T) {
 	var _ modules.ReverseProxiedModule = &Module{}
+	var _ modules.PrometheusModule = &Module{}
 }

@@ -18,6 +18,7 @@ import (
 
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/model/rulefmt"
+	"github.com/roidelapluie/o11y-deploy/model/promserver"
 	"github.com/roidelapluie/o11y-deploy/modules"
 )
 
@@ -66,8 +67,8 @@ func SetPromRules(ctx context.Context, tg string, rules []rulefmt.RuleGroup) con
 }
 
 // GetPromServers gets Prometheus server IP's from the context
-func GetPromServers(ctx context.Context) []string {
-	servers, ok := ctx.Value(promServers).([]string)
+func GetPromServers(ctx context.Context) []promserver.PrometheusServer {
+	servers, ok := ctx.Value(promServers).([]promserver.PrometheusServer)
 	if !ok {
 		return nil
 	}
@@ -75,13 +76,13 @@ func GetPromServers(ctx context.Context) []string {
 }
 
 // SetPromServers adds Prometheus server IP's to the context
-func SetPromServers(ctx context.Context, servers []string) context.Context {
+func SetPromServers(ctx context.Context, servers []promserver.PrometheusServer) context.Context {
 	return context.WithValue(ctx, promServers, servers)
 }
 
 // GetDashboards gets Grafana dashboards from the context
-func GetDashboards(ctx context.Context) []map[string]interface{} {
-	dashboards, ok := ctx.Value(grafanaDashboards).([]map[string]interface{})
+func GetDashboards(ctx context.Context) [][]byte {
+	dashboards, ok := ctx.Value(grafanaDashboards).([][]byte)
 	if !ok {
 		return nil
 	}
@@ -89,7 +90,7 @@ func GetDashboards(ctx context.Context) []map[string]interface{} {
 }
 
 // SetDashboards adds dashboards to the context
-func SetDashboards(ctx context.Context, dashboards []map[string]interface{}) context.Context {
+func SetDashboards(ctx context.Context, dashboards [][]byte) context.Context {
 	return context.WithValue(ctx, grafanaDashboards, dashboards)
 }
 
