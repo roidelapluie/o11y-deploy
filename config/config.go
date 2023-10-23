@@ -131,7 +131,11 @@ func LoadFile(filePath string) (*Config, error) {
 		return nil, err
 	}
 
-	config.SetDirectory(filepath.Dir(filePath))
+	dir, err := filepath.Abs(filepath.Dir(filePath))
+	if err != nil {
+		return nil, err
+	}
+	config.SetDirectory(dir)
 
 	return &config, nil
 }
