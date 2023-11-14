@@ -1,5 +1,10 @@
 package dashboard
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 type Dashboard struct {
 	Annotations          Annotations   `json:"annotations"`
 	Description          string        `json:"description"`
@@ -171,7 +176,7 @@ type TemplatingDetail struct {
 	Multi       bool          `json:"multi"`
 	Name        string        `json:"name"`
 	Options     []interface{} `json:"options"`
-	Query       string        `json:"query"`
+	Query       QueryValue    `json:"query"`
 	QueryValue  string        `json:"queryValue"`
 	Refresh     int           `json:"refresh"`
 	Regex       string        `json:"regex"`
@@ -191,3 +196,40 @@ type TimeRange struct {
 }
 
 type Timepicker struct{}
+
+type QueryObject struct {
+	Query string `json:"query"`
+	Refid string `json:"refid"`
+}
+
+type QueryValue struct {
+	StringValue string
+	ObjectValue *QueryObject
+	IsString    bool
+}
+
+func (qv *QueryValue) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		qv.StringValue = s
+		qv.IsString = true
+		return nil
+	}
+
+	var obj QueryObject
+	if err := json.Unmarshal(data, &obj); err == nil {
+		qv.ObjectValue = &obj
+		qv.IsString = false
+		return nil
+	}
+
+	return fmt.Errorf("failed to unmarshal QueryValue")
+}
+
+// Implement the json.Marshaler interface for QueryValue
+func (qv *QueryValue) MarshalJSON() ([]byte, error) {
+	if qv.IsString {
+		return json.Marshal(qv.StringValue)
+	}
+	return json.Marshal(qv.ObjectValue)
+}

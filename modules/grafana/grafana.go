@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/roidelapluie/o11y-deploy/model/ansible"
@@ -32,6 +33,7 @@ import (
 	"github.com/roidelapluie/o11y-deploy/modules"
 
 	"github.com/prometheus/prometheus/model/labels"
+	"github.com/prometheus/prometheus/promql/parser"
 )
 
 var DefaultConfig = ModuleConfig{
@@ -105,15 +107,32 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 			return nil, err
 		}
 
+		if len(dashboar.Templating.List) > 0 {
+			det := deepCopyTemplatingDetail(dashboar.Templating.List[0])
+			expr := det.Query.ObjectValue.Query
+			var err error
+			det.Query.ObjectValue.Query, err = recodeQuery(expr, "", "group_name")
+			if err != nil {
+				return nil, err
+			}
+
+			dashboar.Templating.List = append([]dashboard.TemplatingDetail{
+				det,
+			}, dashboar.Templating.List...)
+		}
+
 		dashboar.Templating.List = append([]dashboard.TemplatingDetail{
 			{
-				Hide:        1,
-				IncludeAll:  false,
-				Label:       "",
-				Multi:       false,
-				Name:        "prometheus_ds",
-				Options:     []interface{}{},
-				Query:       "prometheus",
+				Hide:       1,
+				IncludeAll: false,
+				Label:      "",
+				Multi:      false,
+				Name:       "prometheus_ds",
+				Options:    []interface{}{},
+				Query: dashboard.QueryValue{
+					StringValue: "prometheus",
+					IsString:    true,
+				},
 				QueryValue:  "",
 				Refresh:     1,
 				Regex:       "",
@@ -128,6 +147,11 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 			for j, t := range np.Targets {
 				nt := t
 				nt.Datasource.UID = "${prometheus_ds}"
+				xp, err := addGroupNameSelector(nt.Expr)
+				if err != nil {
+					return nil, err
+				}
+				nt.Expr = xp
 				np.Targets[j] = nt
 			}
 			dashboar.Panels[i] = np
@@ -185,6 +209,18 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 			"grafana_dashboards_dir": directoryPath,
 			"grafana_metrics": map[string]interface{}{
 				"enabled": true,
+			},
+			"grafana_auth": map[string]interface{}{
+				"disable_login_form":   true,
+				"oauth_auto_login":     false,
+				"disable_signout_menu": false,
+				"signout_redirect_url": "/auth/logout",
+				"proxy": map[string]interface{}{
+					"enabled":         true,
+					"header_name":     "X-WEBAUTH-USER",
+					"header_property": "username",
+					"auto_sign_up":    true,
+				},
 			},
 		},
 		Hosts:  "all",
@@ -245,4 +281,107 @@ func escapeStructStrings(v reflect.Value) {
 			}
 		}
 	}
+}
+
+func addGroupNameSelector(query string) (string, error) {
+	expr, err := parser.ParseExpr(encodeGrafanaVar(query))
+	if err != nil {
+		return query, err
+	}
+	name := "group_name"
+	value := "$group_name"
+	matchType := labels.MatchRegexp
+
+	parser.Inspect(expr, func(node parser.Node, path []parser.Node) error {
+		if n, ok := node.(*parser.VectorSelector); ok {
+			var found bool
+			for i, l := range n.LabelMatchers {
+				if l.Name == name {
+					n.LabelMatchers[i].Type = matchType
+					n.LabelMatchers[i].Value = value
+					found = true
+				}
+			}
+			if !found {
+				n.LabelMatchers = append(n.LabelMatchers, &labels.Matcher{
+					Type:  matchType,
+					Name:  name,
+					Value: value,
+				})
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return query, err
+	}
+	return decodeGrafanaVar(expr.Pretty(0)), nil
+}
+
+// extractQuery takes a Grafana-style label_values query and extracts the
+// metric and its selectors, then constructs the desired query format.
+func extractQuery(query string) (string, error) {
+	// Regular expression to match the query format
+	// e.g., label_values(node_exporter_build_info{fo="bar",bar="foo",ss="xx"},instance)
+	re := regexp.MustCompile(`label_values\((?P<metric>[a-zA-Z_][a-zA-Z0-9_]*)({(?P<labels>.*)})?,((?P<label>[a-zA-Z_][a-zA-Z0-9_]*))\)`)
+	matches := re.FindStringSubmatch(query)
+
+	if len(matches) == 0 {
+		return "", fmt.Errorf("invalid query format")
+	}
+
+	metric := matches[re.SubexpIndex("metric")]
+	labels := matches[re.SubexpIndex("labels")]
+
+	// Construct the desired query format
+	if labels != "" {
+		return fmt.Sprintf("%s{%s}", metric, labels), nil
+	}
+	return metric, nil
+}
+
+func recodeQuery(query, newMetric, newLabel string) (string, error) {
+	// Regular expression to match the query format
+	// e.g., label_values(node_exporter_build_info{fo="bar",bar="foo",ss="xx"},instance)
+	re := regexp.MustCompile(`label_values\((?P<metric>[a-zA-Z_][a-zA-Z0-9_]*)({(?P<labels>.*)})?,((?P<label>[a-zA-Z_][a-zA-Z0-9_]*))\)`)
+	matches := re.FindStringSubmatch(query)
+
+	if len(matches) == 0 {
+		return "", fmt.Errorf("invalid query format")
+	}
+
+	label := matches[re.SubexpIndex("label")]
+	metric := matches[re.SubexpIndex("metric")]
+	labels := matches[re.SubexpIndex("labels")]
+	if labels != "" {
+		metric = fmt.Sprintf("%s{%s}", metric, labels)
+	}
+	if newLabel != "" {
+		return fmt.Sprintf("label_values(%s,%s)", metric, newLabel), nil
+	}
+	if newMetric != "" {
+		return fmt.Sprintf("label_values(%s,%s)", newMetric, label), nil
+	}
+
+	// Construct the desired query format
+	return fmt.Sprintf("label_values(%s,%s)", metric, label), nil
+}
+
+func deepCopyTemplatingDetail(src dashboard.TemplatingDetail) dashboard.TemplatingDetail {
+	// Start with a shallow copy
+	cpy := src
+
+	// Directly initialize all fields for newQueryValue
+	newQueryValue := dashboard.QueryValue{
+		StringValue: src.Query.StringValue,
+		ObjectValue: &dashboard.QueryObject{
+			Query: src.Query.ObjectValue.Query,
+			Refid: src.Query.ObjectValue.Refid,
+		},
+		IsString: src.Query.IsString,
+	}
+
+	cpy.Query = newQueryValue
+
+	return cpy
 }
