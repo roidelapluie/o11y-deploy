@@ -39,7 +39,7 @@ import (
 var DefaultConfig = ModuleConfig{
 	AdminPassword:  "changeme",
 	Enabled:        false,
-	GrafanaVersion: "latest",
+	GrafanaVersion: "10.2.0",
 	DashboardsDir:  "/usr/share/o11y-dashboards",
 }
 
