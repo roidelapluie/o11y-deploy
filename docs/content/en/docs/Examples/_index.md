@@ -34,7 +34,7 @@ target_groups:
       grafana_module:
         enabled: true
     targets:
-      static_confis:
+      static_configs:
       - targets:
           - 'localhost:22'
         labels:
