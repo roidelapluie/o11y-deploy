@@ -34,12 +34,14 @@ const (
 )
 
 var (
-	depsHome     = kingpin.Flag("deps-home", "The home of O11y-deps").Default("/opt/o11y/deps").String()
-	allowDepsDev = kingpin.Flag("allow-deps-dev", "Allow running with 'dev' version of dependencies").Bool()
-	configFile   = kingpin.Flag("config-file", "The path to the configuration file").Default("o11y.yml").String()
-	ara          = kingpin.Flag("ara", "Run the Ara webserver").Bool()
-	ansibleDebug = kingpin.Flag("ansible.debug", "Run ansible in debug mode").Counter()
-	modules      = kingpin.Flag("module", "Only run select modules").Strings()
+	depsHome        = kingpin.Flag("deps-home", "The home of O11y-deps").Default("/opt/o11y/deps").String()
+	allowDepsDev    = kingpin.Flag("allow-deps-dev", "Allow running with 'dev' version of dependencies").Bool()
+	configFile      = kingpin.Flag("config-file", "The path to the configuration file").Default("o11y.yml").String()
+	ara             = kingpin.Flag("ara", "Run the Ara webserver").Bool()
+	ansibleDebug    = kingpin.Flag("ansible.debug", "Run ansible in debug mode").Counter()
+	ansibleSkipTags = kingpin.Flag("ansible.skip-tag", "Tag to skip").Strings()
+	ansibleLimit    = kingpin.Flag("ansible.limit", "Ansible limit").String()
+	modules         = kingpin.Flag("module", "Only run select modules").Strings()
 )
 
 func main() {
@@ -111,7 +113,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = deployer.Run(*modules); err != nil {
+	if err = deployer.Run(*modules, *ansibleSkipTags, *ansibleLimit); err != nil {
 		fmt.Printf("Error running deployer: %v\n", err)
 		os.Exit(1)
 	}

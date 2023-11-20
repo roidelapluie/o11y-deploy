@@ -114,7 +114,7 @@ func (ar *AnsibleRunner) FindARAPath() (string, error) {
 	return ar.araPath, nil
 }
 
-func (ar *AnsibleRunner) RunPlaybooks(ctx context.Context, playbooks []*ansible.Playbook, extraArgs ...string) error {
+func (ar *AnsibleRunner) RunPlaybooks(ctx context.Context, playbooks []*ansible.Playbook, skipTags []string, limit string) error {
 	if len(playbooks) == 0 {
 		return errors.New("No playbooks!")
 	}
@@ -191,10 +191,9 @@ func (ar *AnsibleRunner) RunPlaybooks(ctx context.Context, playbooks []*ansible.
 	for i := 0; i < ar.debug; i++ {
 		args = append(args, "-v")
 	}
-	//if len(playbook.Targets) > 0 {
-	//	args = append(args, "--limit", strings.Join(playbook.Targets, ","))
-	//}
-	args = append(args, extraArgs...)
+	if len(limit) > 0 {
+		args = append(args, "--limit", limit)
+	}
 
 	cmd := exec.Command(ar.AnsiblePath, args...)
 	cmdWriter := writer.New(os.Stdout)
@@ -212,6 +211,7 @@ func (ar *AnsibleRunner) RunPlaybooks(ctx context.Context, playbooks []*ansible.
 	if ar.debug > 1 {
 		cmd.Env = append(cmd.Env, "CI=true")
 	}
+	cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_SKIP_TAGS=%s", strings.Join(skipTags, ",")))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", homeDir))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_CONFIG=%s", cfgFile))
 	cmd.Env = append(cmd.Env, "ANSIBLE_CALLBACKS_ENABLED=json_logger")

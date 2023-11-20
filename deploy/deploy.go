@@ -56,7 +56,7 @@ func NewDeployer(logger log.Logger, cfg *config.Config, homeDeps string, ansible
 }
 
 // Run executes the deployment process and returns an error if anything goes wrong.
-func (d *Deployer) Run(enabledModules []string) error {
+func (d *Deployer) Run(enabledModules, skipTags []string, limit string) error {
 	// Validate the configuration before proceeding with the deployment
 	err := d.validateConfig()
 	if err != nil {
@@ -206,11 +206,11 @@ func (d *Deployer) Run(enabledModules []string) error {
 		if err != nil {
 			return err
 		}
-		err = ar.RunPlaybooks(c, ansible.Ping())
+		err = ar.RunPlaybooks(c, ansible.Ping(), skipTags, limit)
 		if err != nil {
 			return err
 		}
-		err = ar.RunPlaybooks(c, pbs)
+		err = ar.RunPlaybooks(c, pbs, skipTags, limit)
 		if err != nil {
 			return err
 		}
