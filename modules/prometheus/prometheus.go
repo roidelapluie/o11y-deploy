@@ -215,7 +215,9 @@ func labelsToStaticConfigs(labelSetList map[string]map[string][]labels.Labels) m
 
 	for _, l := range labelSetList {
 		for job, k := range l {
-			staticConfigsMap[job] = make([]StaticConfig, 0, len(l))
+			if _, ok := staticConfigsMap[job]; !ok {
+				staticConfigsMap[job] = make([]StaticConfig, 0, len(l))
+			}
 			for _, labelSet := range k {
 				staticConfig := StaticConfig{
 					Targets: make([]string, 0, 1),
