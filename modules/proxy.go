@@ -10,4 +10,5 @@ type ReverseProxyEntry struct {
 	Name   string `yaml:"name"`
 	URL    string `yaml:"url"`
 	Prefix string `yaml:"prefix"`
+	Host   string `yaml:"host"`
 }

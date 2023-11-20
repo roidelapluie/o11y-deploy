@@ -16,6 +16,7 @@ package prometheus
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"sort"
@@ -33,7 +34,9 @@ import (
 
 var DefaultConfig = ModuleConfig{
 	Enabled:           false,
-	PrometheusVersion: "2.43.0",
+	PrometheusVersion: "2.48.0",
+	ListenAddress:     "127.0.0.1",
+	ListenPort:        "9090",
 }
 
 func init() {
@@ -43,6 +46,8 @@ func init() {
 type ModuleConfig struct {
 	Enabled           bool   `yaml:"enabled"`
 	PrometheusVersion string `yaml:"prometheus_version"`
+	ListenAddress     string `yaml:"listen_address"`
+	ListenPort        string `yaml:"listen_port"`
 }
 
 func (m *ModuleConfig) Name() string {
@@ -166,6 +171,7 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 			"prometheus_alert_rules_files":    rulesFiles,
 			"prometheus_static_targets_files": []string{},
 			"prometheus_web_external_url":     "{{o11y_prometheus_external_address}}",
+			"prometheus_web_listen_address":   net.JoinHostPort(m.cfg.ListenAddress, m.cfg.ListenPort),
 		},
 		Hosts:  "all",
 		Become: true,

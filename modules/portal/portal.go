@@ -127,6 +127,8 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 			BcryptPassword: hash,
 			Email:          "admin@localhost",
 			Role:           "admin",
+			Domain:         "localhost",
+			UUID:           uuid.NewSHA1(uuid.NameSpaceDNS, []byte("webadmin")).String(),
 		})
 	}
 

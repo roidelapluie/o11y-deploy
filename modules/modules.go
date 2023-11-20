@@ -15,7 +15,6 @@ package modules
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 	"net"
 	"reflect"
@@ -130,11 +129,11 @@ func GetReverseProxy(targets []labels.Labels, port, name, prefix, group string) 
 		if err != nil {
 			host = string(addr)
 		}
-		ename := fmt.Sprintf("%s on %s", name, host)
 		entries[i] = ReverseProxyEntry{
 			Name:   name,
-			URL:    fmt.Sprintf("http://%s", net.JoinHostPort(host, port)),
-			Prefix: prefix + "/" + HashString(ename),
+			URL:    fmt.Sprintf("http://%s", net.JoinHostPort("127.0.0.1", port)),
+			Prefix: prefix + "/",
+			Host:   host,
 		}
 
 	}
@@ -147,16 +146,5 @@ func GetReverseProxyAddress(target labels.Labels, name, prefix, group string) (s
 	if addr == "" {
 		return "", fmt.Errorf("__address__ label not found in label set")
 	}
-	host, _, err := net.SplitHostPort(string(addr))
-	if err != nil {
-		host = string(addr)
-	}
-	ename := fmt.Sprintf("%s on %s", name, host)
-	return "{{o11y_portal_address|default(\"\")}}" + prefix + "/" + HashString(ename), nil
-}
-
-func HashString(s string) string {
-	h := sha256.New()
-	h.Write([]byte(s))
-	return fmt.Sprintf("%x", h.Sum(nil))[:20]
+	return "{{o11y_portal_address|default(\"\")}}" + prefix + "/", nil
 }

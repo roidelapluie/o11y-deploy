@@ -39,8 +39,10 @@ import (
 var DefaultConfig = ModuleConfig{
 	AdminPassword:  "changeme",
 	Enabled:        false,
-	GrafanaVersion: "10.2.0",
+	GrafanaVersion: "10.2.1",
 	DashboardsDir:  "/usr/share/o11y-dashboards",
+	GrafanaAddress: "127.0.0.1",
+	GrafanaPort:    3000,
 }
 
 func init() {
@@ -52,6 +54,33 @@ type ModuleConfig struct {
 	Enabled        bool   `yaml:"enabled"`
 	GrafanaVersion string `yaml:"grafana_version"`
 	DashboardsDir  string `yaml:"o11y_dashboards_dir"`
+	GrafanaAddress string `yaml:"grafana_address"`
+	GrafanaPort    int64  `yaml:"grafana_port"`
+}
+
+type GrafanaServerConfig struct {
+	GrafanaServer    string `yaml:"grafana_server"`
+	Protocol         string `yaml:"protocol"`
+	EnforceDomain    bool   `yaml:"enforce_domain"`
+	Socket           string `yaml:"socket"`
+	CertKey          string `yaml:"cert_key"`
+	CertFile         string `yaml:"cert_file"`
+	EnableGzip       bool   `yaml:"enable_gzip"`
+	StaticRootPath   string `yaml:"static_root_path"`
+	RouterLogging    bool   `yaml:"router_logging"`
+	ServeFromSubPath bool   `yaml:"serve_from_sub_path"`
+}
+
+type GrafanaUsers struct {
+	AllowSignUp       bool   `yaml:"allow_sign_up"`
+	AutoAssignOrgRole string `yaml:"auto_assign_org_role"`
+	DefaultTheme      string `yaml:"default_theme"`
+	// AllowOrgCreate         bool   `yaml:"allow_org_create"`
+	// AutoAssignOrg          bool   `yaml:"auto_assign_org"`
+	// LoginHint              string `yaml:"login_hint"`
+	// ExternalManageLinkURL  string `yaml:"external_manage_link_url"`
+	// ExternalManageLinkName string `yaml:"external_manage_link_name"`
+	// ExternalManageInfo     string `yaml:"external_manage_info"`
 }
 
 func (m *ModuleConfig) Name() string {
@@ -205,6 +234,8 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 				"admin_user":     "admin",
 				"admin_password": m.cfg.AdminPassword,
 			},
+			"grafana_address":        m.cfg.GrafanaAddress,
+			"grafana_port":           m.cfg.GrafanaPort,
 			"grafana_datasources":    grafanaDS,
 			"grafana_dashboards_dir": directoryPath,
 			"grafana_metrics": map[string]interface{}{
@@ -217,10 +248,22 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 				"signout_redirect_url": "/auth/logout",
 				"proxy": map[string]interface{}{
 					"enabled":         true,
-					"header_name":     "X-WEBAUTH-USER",
+					"header_name":     "X-Token-Subject",
 					"header_property": "username",
 					"auto_sign_up":    true,
 				},
+			},
+			"grafana_server": GrafanaServerConfig{
+				GrafanaServer:    "localhost",
+				Protocol:         "http",
+				EnforceDomain:    false,
+				Socket:           "",
+				CertKey:          "",
+				CertFile:         "",
+				EnableGzip:       false,
+				StaticRootPath:   "public",
+				RouterLogging:    false,
+				ServeFromSubPath: true,
 			},
 		},
 		Hosts:  "all",
@@ -236,7 +279,13 @@ func (m *Module) GetTargets(labels []labels.Labels, group string) ([]labels.Labe
 }
 
 func (m *Module) HostVars(target labels.Labels, group string) (map[string]interface{}, error) {
-	return nil, nil
+	addr, err := modules.GetReverseProxyAddress(target, m.cfg.Name(), "/grafana", group)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{
+		"grafana_url": addr,
+	}, nil
 }
 
 func replaceBraces(data []byte) []byte {
@@ -384,4 +433,8 @@ func deepCopyTemplatingDetail(src dashboard.TemplatingDetail) dashboard.Templati
 	cpy.Query = newQueryValue
 
 	return cpy
+}
+
+func (m *Module) ReverseProxy(targets []labels.Labels, group string) ([]modules.ReverseProxyEntry, error) {
+	return modules.GetReverseProxy(targets, fmt.Sprintf("%d", m.cfg.GrafanaPort), m.cfg.Name(), "/grafana", group)
 }
