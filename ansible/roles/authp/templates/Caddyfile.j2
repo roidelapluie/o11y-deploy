@@ -31,6 +31,7 @@
 			# disable auth redirect
 			set auth url /auth
 			allow roles authp/user
+			inject headers with claims
 			acl rule {
 				comment allow guests only
 				match role guest authp/user
