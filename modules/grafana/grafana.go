@@ -37,12 +37,13 @@ import (
 )
 
 var DefaultConfig = ModuleConfig{
-	AdminPassword:  "changeme",
-	Enabled:        false,
-	GrafanaVersion: "10.2.1",
-	DashboardsDir:  "/usr/share/o11y-dashboards",
-	GrafanaAddress: "127.0.0.1",
-	GrafanaPort:    3000,
+	AdminPassword:     "changeme",
+	Enabled:           false,
+	GrafanaVersion:    "10.2.1",
+	DashboardsDir:     "/usr/share/o11y-dashboards",
+	GrafanaAddress:    "127.0.0.1",
+	GrafanaPort:       3000,
+	AutoAssignOrgRole: "Viewer",
 }
 
 func init() {
@@ -50,12 +51,13 @@ func init() {
 }
 
 type ModuleConfig struct {
-	AdminPassword  string `yaml:"admin_password"`
-	Enabled        bool   `yaml:"enabled"`
-	GrafanaVersion string `yaml:"grafana_version"`
-	DashboardsDir  string `yaml:"o11y_dashboards_dir"`
-	GrafanaAddress string `yaml:"grafana_address"`
-	GrafanaPort    int64  `yaml:"grafana_port"`
+	AdminPassword     string `yaml:"admin_password"`
+	Enabled           bool   `yaml:"enabled"`
+	GrafanaVersion    string `yaml:"grafana_version"`
+	DashboardsDir     string `yaml:"o11y_dashboards_dir"`
+	GrafanaAddress    string `yaml:"grafana_address"`
+	GrafanaPort       int64  `yaml:"grafana_port"`
+	AutoAssignOrgRole string `yaml:"users_role"`
 }
 
 type GrafanaServerConfig struct {
@@ -136,10 +138,18 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 			return nil, err
 		}
 
+		for i, _ := range dashboar.Templating.List {
+			dashboar.Templating.List[i].Datasource = dashboard.TemplatingDataSource{
+				Type: "prometheus",
+				UID:  "${prometheus_ds}",
+			}
+		}
+
 		if len(dashboar.Templating.List) > 0 {
 			det := deepCopyTemplatingDetail(dashboar.Templating.List[0])
 			expr := det.Query.ObjectValue.Query
 			var err error
+			det.Name = "group_name"
 			det.Query.ObjectValue.Query, err = recodeQuery(expr, "", "group_name")
 			if err != nil {
 				return nil, err
@@ -162,7 +172,6 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 					StringValue: "prometheus",
 					IsString:    true,
 				},
-				QueryValue:  "",
 				Refresh:     1,
 				Regex:       "",
 				SkipUrlSync: false,
@@ -185,8 +194,6 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 			}
 			dashboar.Panels[i] = np
 		}
-
-		//escapeStructStrings(reflect.ValueOf(&dashboar).Elem())
 
 		hasher := sha1.New()
 		hasher.Write([]byte(dashboar.Title))
@@ -264,6 +271,11 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 				StaticRootPath:   "public",
 				RouterLogging:    false,
 				ServeFromSubPath: true,
+			},
+			"grafana_users": GrafanaUsers{
+				AllowSignUp:       false,
+				AutoAssignOrgRole: m.cfg.AutoAssignOrgRole,
+				DefaultTheme:      "dark",
 			},
 		},
 		Hosts:  "all",

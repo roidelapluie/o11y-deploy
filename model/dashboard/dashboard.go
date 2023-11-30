@@ -49,15 +49,18 @@ type Datasource struct {
 }
 
 type Panel struct {
-	Datasource  Datasource  `json:"datasource"`
-	Description string      `json:"description"`
-	FieldConfig FieldConfig `json:"fieldConfig"`
-	GridPos     GridPos     `json:"gridPos"`
-	ID          int         `json:"id"`
-	Options     Options     `json:"options"`
-	Targets     []Target    `json:"targets"`
-	Title       string      `json:"title"`
-	Type        string      `json:"type"`
+	Datasource      Datasource    `json:"datasource"`
+	Description     *string       `json:"description,omitempty"`
+	FieldConfig     FieldConfig   `json:"fieldConfig"`
+	GridPos         GridPos       `json:"gridPos"`
+	ID              int           `json:"id"`
+	Options         interface{}   `json:"options,omitempty"`
+	PluginVersion   *string       `json:"pluginVersion,omitempty"`
+	Targets         []Target      `json:"targets"`
+	Title           string        `json:"title"`
+	Transformations []interface{} `json:"transformations,omitempty"`
+	Transparent     *bool         `json:"transparent,omitempty"`
+	Type            string        `json:"type"`
 }
 
 type FieldConfig struct {
@@ -67,8 +70,8 @@ type FieldConfig struct {
 
 type Defaults struct {
 	Color      Color         `json:"color"`
-	Custom     Custom        `json:"custom"`
-	Decimals   int           `json:"decimals"`
+	Custom     interface{}   `json:"custom"`
+	Decimals   *int          `json:"decimals,omitempty"`
 	Mappings   []interface{} `json:"mappings"`
 	Thresholds Thresholds    `json:"thresholds"`
 	Unit       string        `json:"unit"`
@@ -83,8 +86,8 @@ type Custom struct {
 	AxisColorMode     string            `json:"axisColorMode"`
 	AxisLabel         string            `json:"axisLabel"`
 	AxisPlacement     string            `json:"axisPlacement"`
-	AxisSoftMax       int               `json:"axisSoftMax"`
-	AxisSoftMin       int               `json:"axisSoftMin"`
+	AxisSoftMax       *int              `json:"axisSoftMax,omitempty"`
+	AxisSoftMin       *int              `json:"axisSoftMin,omitempty"`
 	BarAlignment      int               `json:"barAlignment"`
 	DrawStyle         string            `json:"drawStyle"`
 	FillOpacity       int               `json:"fillOpacity"`
@@ -157,7 +160,10 @@ type Tooltip struct {
 type Target struct {
 	Datasource   Datasource `json:"datasource"`
 	EditorMode   string     `json:"editorMode"`
+	Exemplar     *bool      `json:"exemplar,omitempty"`
 	Expr         string     `json:"expr"`
+	Format       *string    `json:"format,omitempty"`
+	Hide         *bool      `json:"hide,omitempty"`
 	Instant      bool       `json:"instant"`
 	LegendFormat string     `json:"legendFormat"`
 	Range        bool       `json:"range"`
@@ -168,20 +174,28 @@ type Templating struct {
 	List []TemplatingDetail `json:"list"`
 }
 
+type TemplatingDataSource struct {
+	Type string `json:"type"`
+	UID  string `json:"uid"`
+}
+
 type TemplatingDetail struct {
-	Current     CurrentDetail `json:"current"`
-	Hide        int           `json:"hide"`
-	IncludeAll  bool          `json:"includeAll"`
-	Label       string        `json:"label"`
-	Multi       bool          `json:"multi"`
-	Name        string        `json:"name"`
-	Options     []interface{} `json:"options"`
-	Query       QueryValue    `json:"query"`
-	QueryValue  string        `json:"queryValue"`
-	Refresh     int           `json:"refresh"`
-	Regex       string        `json:"regex"`
-	SkipUrlSync bool          `json:"skipUrlSync"`
-	Type        string        `json:"type"`
+	Current     CurrentDetail        `json:"current"`
+	Datasource  TemplatingDataSource `json:"datasource"`
+	Definition  *string              `json:"definition,omitempty"`
+	Hide        int                  `json:"hide"`
+	IncludeAll  bool                 `json:"includeAll"`
+	Label       string               `json:"label"`
+	Multi       bool                 `json:"multi"`
+	Name        string               `json:"name"`
+	Options     []interface{}        `json:"options"`
+	Query       QueryValue           `json:"query"`
+	QueryValue  *string              `json:"queryValue,omitempty"`
+	Refresh     int                  `json:"refresh"`
+	Regex       string               `json:"regex"`
+	SkipUrlSync bool                 `json:"skipUrlSync"`
+	Sort        *int                 `json:"sort,omitempty"`
+	Type        string               `json:"type"`
 }
 
 type CurrentDetail struct {
@@ -199,7 +213,7 @@ type Timepicker struct{}
 
 type QueryObject struct {
 	Query string `json:"query"`
-	Refid string `json:"refid"`
+	Refid string `json:"refId"`
 }
 
 type QueryValue struct {
