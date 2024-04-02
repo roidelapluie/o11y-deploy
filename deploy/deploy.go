@@ -31,6 +31,7 @@ import (
 	"github.com/prometheus/prometheus/model/rulefmt"
 	"github.com/roidelapluie/o11y-deploy/ansible"
 	"github.com/roidelapluie/o11y-deploy/config"
+	"github.com/roidelapluie/o11y-deploy/model/amserver"
 	ansiblemodel "github.com/roidelapluie/o11y-deploy/model/ansible"
 	"github.com/roidelapluie/o11y-deploy/model/ctx"
 	"github.com/roidelapluie/o11y-deploy/model/promserver"
@@ -85,6 +86,7 @@ func (d *Deployer) Run(enabledModules, skipTags []string, limit string) error {
 	dashboards := [][]byte{}
 	dashboardFiles := make(map[string][]byte)
 	promServers := []promserver.PrometheusServer{}
+	amServers := []amserver.AlertmanagerServer{}
 	reverseProxyEntries := make([]modules.ReverseProxyEntry, 0)
 	lb := labels.NewBuilder(labels.EmptyLabels())
 	for _, targetGroup := range d.cfg.TargetGroups {
@@ -142,12 +144,20 @@ func (d *Deployer) Run(enabledModules, skipTags []string, limit string) error {
 				}
 				promServers = append(promServers, ps...)
 			}
+			if rp, ok := m.(modules.AlertmanagerModule); ok {
+				ps, err := rp.GetAlertmanagerServers(tgs, targetGroup.Name)
+				if err != nil {
+					return err
+				}
+				amServers = append(amServers, ps...)
+			}
 		}
 		prometheusTargets[targetGroup.Name] = promTargets
 		c = ctx.SetPromRules(c, targetGroup.Name, ruleGroups)
 	}
 
 	c = ctx.SetPromServers(c, promServers)
+    c = ctx.SetAlertmanagerServers(c, amServers)
 	c = ctx.SetPromTargets(c, prometheusTargets)
 	c = ctx.SetDashboards(c, dashboards)
 	c = ctx.SetDashboardFiles(c, dashboardFiles)

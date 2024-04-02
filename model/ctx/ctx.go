@@ -18,6 +18,7 @@ import (
 
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/model/rulefmt"
+	"github.com/roidelapluie/o11y-deploy/model/amserver"
 	"github.com/roidelapluie/o11y-deploy/model/promserver"
 	"github.com/roidelapluie/o11y-deploy/modules"
 )
@@ -29,6 +30,7 @@ const (
 	promTargets           key = iota
 	promRules             key = iota
 	promServers           key = iota
+	amServers             key = iota
 	grafanaDashboards     key = iota
 	grafanaDashboardFiles key = iota
 	dataDir               key = iota
@@ -78,6 +80,20 @@ func GetPromServers(ctx context.Context) []promserver.PrometheusServer {
 // SetPromServers adds Prometheus server IP's to the context
 func SetPromServers(ctx context.Context, servers []promserver.PrometheusServer) context.Context {
 	return context.WithValue(ctx, promServers, servers)
+}
+
+// GetAlertmanagerServers gets Alertmanager server IP's from the context
+func GetAlertmanagerServers(ctx context.Context) []amserver.AlertmanagerServer {
+	servers, ok := ctx.Value(amServers).([]amserver.AlertmanagerServer)
+	if !ok {
+		return nil
+	}
+	return servers
+}
+
+// SetAlertmanagerServers sets Alertmanager server IP's to the context
+func SetAlertmanagerServers(ctx context.Context, servers []amserver.AlertmanagerServer) context.Context {
+	return context.WithValue(ctx, amServers, servers)
 }
 
 // GetDashboards gets Grafana dashboards from the context

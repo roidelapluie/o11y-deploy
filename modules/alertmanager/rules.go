@@ -11,16 +11,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package alertmanager
 
 import (
-	_ "github.com/prometheus/prometheus/discovery/digitalocean"
-	_ "github.com/prometheus/prometheus/discovery/file"
-	_ "github.com/prometheus/prometheus/discovery/http"
+	"fmt"
 
-	_ "github.com/roidelapluie/o11y-deploy/modules/alertmanager"
-	_ "github.com/roidelapluie/o11y-deploy/modules/grafana"
-	_ "github.com/roidelapluie/o11y-deploy/modules/linux"
-	_ "github.com/roidelapluie/o11y-deploy/modules/portal"
-	_ "github.com/roidelapluie/o11y-deploy/modules/prometheus"
+	"github.com/prometheus/prometheus/model/rulefmt"
+	"gopkg.in/yaml.v3"
 )
+
+// GetRules returns recording and alerting rules for this module.
+func (m *Module) GetRules(tg string) rulefmt.RuleGroup {
+	return rulefmt.RuleGroup{
+		Name:  fmt.Sprintf("%v-alertmanager", tg),
+		Rules: []rulefmt.RuleNode{},
+	}
+}
+
+func node(value string) yaml.Node {
+	return yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Value: value,
+	}
+}

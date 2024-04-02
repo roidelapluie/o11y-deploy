@@ -13,6 +13,7 @@ init_roles:
 # target for creating the tar.gz file
 roles:
 	./tar_directories.sh ansible/roles.tar.gz \
+		ansible/prometheus-community/roles/alertmanager \
 		ansible/prometheus-community/roles/node_exporter \
 		ansible/prometheus-community/roles/prometheus \
 		ansible/grafana-ansible-collection/roles/grafana \

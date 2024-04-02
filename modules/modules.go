@@ -131,7 +131,7 @@ func GetReverseProxy(targets []labels.Labels, port, name, prefix, group string) 
 		}
 		entries[i] = ReverseProxyEntry{
 			Name:   name,
-			URL:    fmt.Sprintf("http://%s", net.JoinHostPort("127.0.0.1", port)),
+			URL:    fmt.Sprintf("http://%s", net.JoinHostPort(host, port)),
 			Prefix: prefix + "/",
 			Host:   host,
 		}

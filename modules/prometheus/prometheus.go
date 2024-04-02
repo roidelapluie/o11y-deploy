@@ -17,6 +17,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+    "net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -162,6 +163,16 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 
 	}
 
+    ams := ctx.GetAlertmanagerServers(c)
+    amsString := []string{}
+    for _, am := range ams {
+        amURL, err := url.Parse(am.URL)
+        if err != nil {
+            return nil, fmt.Errorf("could not parse alertmanager url: %v", err)
+        }
+        amsString = append(amsString, amURL.Hostname())
+    }
+
 	return &ansible.Playbook{
 		Name: "Linux",
 		Vars: map[string]interface{}{
@@ -172,6 +183,17 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 			"prometheus_static_targets_files": []string{},
 			"prometheus_web_external_url":     "{{o11y_prometheus_external_address}}",
 			"prometheus_web_listen_address":   net.JoinHostPort(m.cfg.ListenAddress, m.cfg.ListenPort),
+            "prometheus_alertmanager_config": []map[string]interface{}{
+                {
+                    "scheme": "http",
+                    "path_prefix": "/alertmanager",
+                    "static_configs": []map[string][]string{
+                        {
+                            "targets": amsString,
+                        },
+                    },
+                },
+            },
 		},
 		Hosts:  "all",
 		Become: true,
