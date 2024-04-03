@@ -27,7 +27,7 @@ import (
 
 var DefaultConfig = ModuleConfig{
 	Enabled:       false,
-	ListenAddress: "127.0.0.1",
+	ListenAddress: "0.0.0.0",
 	ListenPort:    "9093",
 	Receivers: []string{
 		"default@change.me",

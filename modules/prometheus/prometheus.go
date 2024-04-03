@@ -37,7 +37,7 @@ import (
 var DefaultConfig = ModuleConfig{
 	Enabled:           false,
 	PrometheusVersion: "2.48.0",
-	ListenAddress:     "127.0.0.1",
+	ListenAddress:     "0.0.0.0",
 	ListenPort:        "9090",
 }
 

@@ -18,7 +18,7 @@ import _ "embed"
 //go:embed dashboards/Linux.json
 var nodeDashboard []byte
 
-// GetDashboards returns pointers to grafana.com dashboards
+// GetDashboards returns the dashboards for this module
 func (m *Module) GetDashboards() [][]byte {
 	return [][]byte{nodeDashboard}
 }

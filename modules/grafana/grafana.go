@@ -37,9 +37,9 @@ import (
 var DefaultConfig = ModuleConfig{
 	AdminPassword:     "changeme",
 	Enabled:           false,
-	GrafanaVersion:    "10.2.1",
+	GrafanaVersion:    "10.4.1",
 	DashboardsDir:     "/usr/share/o11y-dashboards",
-	GrafanaAddress:    "127.0.0.1",
+	GrafanaAddress:    "0.0.0.0",
 	GrafanaPort:       3000,
 	AutoAssignOrgRole: "Viewer",
 }
@@ -236,7 +236,7 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 			"grafana_version":             m.cfg.GrafanaVersion,
 			"grafana_provisioning_synced": true,
 			"grafana_security": map[string]string{
-				"admin_user":     "admin",
+				"admin_user":     "webadmin",
 				"admin_password": m.cfg.AdminPassword,
 			},
 			"grafana_address":        m.cfg.GrafanaAddress,
