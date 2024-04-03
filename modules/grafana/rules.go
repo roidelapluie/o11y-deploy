@@ -17,7 +17,6 @@ import (
 	"fmt"
 
 	"github.com/prometheus/prometheus/model/rulefmt"
-	"gopkg.in/yaml.v3"
 )
 
 // GetRules returns recording and alerting rules for this module.
@@ -25,12 +24,5 @@ func (m *Module) GetRules(tg string) rulefmt.RuleGroup {
 	return rulefmt.RuleGroup{
 		Name:  fmt.Sprintf("%v-grafana", tg),
 		Rules: []rulefmt.RuleNode{},
-	}
-}
-
-func node(value string) yaml.Node {
-	return yaml.Node{
-		Kind:  yaml.ScalarNode,
-		Value: value,
 	}
 }

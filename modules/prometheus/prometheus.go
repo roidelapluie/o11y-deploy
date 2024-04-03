@@ -199,7 +199,7 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 		Hosts:  "all",
 		Become: true,
 		Roles: []ansible.Role{
-			ansible.Role{
+			{
 				Name: "prometheus",
 			},
 		},

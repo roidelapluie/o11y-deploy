@@ -14,7 +14,6 @@
 package grafana
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
@@ -23,9 +22,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"reflect"
 	"regexp"
-	"strings"
 
 	"github.com/roidelapluie/o11y-deploy/model/ansible"
 	"github.com/roidelapluie/o11y-deploy/model/ctx"
@@ -139,7 +136,7 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 			return nil, err
 		}
 
-		for i, _ := range dashboar.Templating.List {
+		for i := range dashboar.Templating.List {
 			dashboar.Templating.List[i].Datasource = dashboard.TemplatingDataSource{
 				Type: "prometheus",
 				UID:  "${prometheus_ds}",
@@ -301,50 +298,6 @@ func (m *Module) HostVars(target labels.Labels, group string) (map[string]interf
 	}, nil
 }
 
-func replaceBraces(data []byte) []byte {
-	data = bytes.Replace(data, []byte("{{"), []byte(`{{ "{{" }}`), -1)
-	data = bytes.Replace(data, []byte("}}"), []byte(`{{ "}}" }}`), -1)
-	return data
-}
-
-func escapeTemplates(input string) string {
-	escapedStart := "{% raw %}{{"
-	escapedEnd := "}}{% endraw %}"
-	escapedContent := strings.ReplaceAll(input, "{{", escapedStart)
-	escapedContent = strings.ReplaceAll(escapedContent, "}}", escapedEnd)
-	return escapedContent
-}
-
-func escapeStructStrings(v reflect.Value) {
-	t := v.Type()
-
-	// If it's a pointer, we need to dereference it.
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-		t = v.Type()
-	}
-
-	for i := 0; i < v.NumField(); i++ {
-		field := v.Field(i)
-		switch field.Kind() {
-		case reflect.String:
-			if field.CanSet() {
-				escapedString := escapeTemplates(field.String())
-				field.SetString(escapedString)
-			}
-		case reflect.Struct:
-			escapeStructStrings(field)
-		case reflect.Slice:
-			elemType := t.Field(i).Type.Elem()
-			if elemType.Kind() == reflect.Struct || (elemType.Kind() == reflect.Ptr && elemType.Elem().Kind() == reflect.Struct) {
-				for j := 0; j < field.Len(); j++ {
-					escapeStructStrings(field.Index(j))
-				}
-			}
-		}
-	}
-}
-
 func addGroupNameSelector(query string) (string, error) {
 	expr, err := parser.ParseExpr(encodeGrafanaVar(query))
 	if err != nil {
@@ -374,32 +327,7 @@ func addGroupNameSelector(query string) (string, error) {
 		}
 		return nil
 	})
-	if err != nil {
-		return query, err
-	}
 	return decodeGrafanaVar(expr.Pretty(0)), nil
-}
-
-// extractQuery takes a Grafana-style label_values query and extracts the
-// metric and its selectors, then constructs the desired query format.
-func extractQuery(query string) (string, error) {
-	// Regular expression to match the query format
-	// e.g., label_values(node_exporter_build_info{fo="bar",bar="foo",ss="xx"},instance)
-	re := regexp.MustCompile(`label_values\((?P<metric>[a-zA-Z_][a-zA-Z0-9_]*)({(?P<labels>.*)})?,((?P<label>[a-zA-Z_][a-zA-Z0-9_]*))\)`)
-	matches := re.FindStringSubmatch(query)
-
-	if len(matches) == 0 {
-		return "", fmt.Errorf("invalid query format")
-	}
-
-	metric := matches[re.SubexpIndex("metric")]
-	labels := matches[re.SubexpIndex("labels")]
-
-	// Construct the desired query format
-	if labels != "" {
-		return fmt.Sprintf("%s{%s}", metric, labels), nil
-	}
-	return metric, nil
 }
 
 func recodeQuery(query, newMetric, newLabel string) (string, error) {
