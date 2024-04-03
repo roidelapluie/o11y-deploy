@@ -15,15 +15,20 @@ package alertmanager
 
 import (
 	"context"
+	"fmt"
+	"net"
 
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/roidelapluie/o11y-deploy/model/amserver"
 	"github.com/roidelapluie/o11y-deploy/model/ansible"
 	"github.com/roidelapluie/o11y-deploy/modules"
+	"github.com/roidelapluie/o11y-deploy/util"
 )
 
 var DefaultConfig = ModuleConfig{
-	Enabled: false,
+	Enabled:       false,
+	ListenAddress: "127.0.0.1",
+	ListenPort:    "9093",
 	Receivers: []string{
 		"default@change.me",
 	},
@@ -37,6 +42,8 @@ func init() {
 
 type ModuleConfig struct {
 	Enabled       bool     `yaml:"enabled"`
+	ListenAddress string   `yaml:"listen_address"`
+	ListenPort    string   `yaml:"listen_port"`
 	Receivers     []string `yaml:"receivers"`
 	SmtpFrom      string   `yaml:"smtp_from"`
 	SmtpSmarthost string   `yaml:"smtp_smarthost"`
@@ -106,7 +113,8 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 				"from":      m.cfg.SmtpFrom,
 				"smarthost": m.cfg.SmtpSmarthost,
 			},
-			"alertmanager_web_external_url":     "{{o11y_alertmanager_external_address}}",
+			"alertmanager_web_external_url":   "{{o11y_alertmanager_external_address}}",
+			"alertmanager_web_listen_address": net.JoinHostPort(m.cfg.ListenAddress, m.cfg.ListenPort),
 		},
 		Hosts:  "all",
 		Become: true,
@@ -129,15 +137,28 @@ func (m *Module) HostVars(target labels.Labels, group string) (map[string]interf
 }
 
 func (m *Module) GetTargets(targets []labels.Labels, group string) ([]labels.Labels, error) {
-	return modules.GetTargets(targets, "9093", group)
+	return modules.GetTargets(targets, m.cfg.ListenPort, group)
 }
 
 func (m *Module) ReverseProxy(targets []labels.Labels, group string) ([]modules.ReverseProxyEntry, error) {
-	return modules.GetReverseProxy(targets, "9093", m.cfg.Name(), "/alertmanager", group)
+	rp, err := modules.GetReverseProxy(targets, m.cfg.ListenPort, m.cfg.Name(), "/alertmanager", group)
+	if err != nil {
+		return rp, fmt.Errorf("could not get reverse proxy entries: %v", err)
+	}
+
+	// If we're only listening on localhost, replace the host part of the entry.
+	if m.cfg.ListenAddress == "127.0.0.1" {
+		rp, err = util.ReplaceHost(rp, "127.0.0.1")
+		if err != nil {
+			return rp, fmt.Errorf("could not replace host address with localhost: %v", err)
+		}
+	}
+
+	return rp, nil
 }
 
 func (m *Module) GetAlertmanagerServers(targets []labels.Labels, group string) ([]amserver.AlertmanagerServer, error) {
-	rp, err := modules.GetReverseProxy(targets, "9093", m.cfg.Name(), "/alertmanager", group)
+	rp, err := modules.GetReverseProxy(targets, m.cfg.ListenPort, m.cfg.Name(), "/alertmanager", group)
 	if err != nil {
 		return nil, err
 	}

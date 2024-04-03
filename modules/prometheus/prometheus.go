@@ -17,7 +17,7 @@ import (
 	"context"
 	"fmt"
 	"net"
-    "net/url"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -30,6 +30,7 @@ import (
 	"github.com/roidelapluie/o11y-deploy/model/ctx"
 	"github.com/roidelapluie/o11y-deploy/model/promserver"
 	"github.com/roidelapluie/o11y-deploy/modules"
+	"github.com/roidelapluie/o11y-deploy/util"
 	"gopkg.in/yaml.v3"
 )
 
@@ -163,15 +164,15 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 
 	}
 
-    ams := ctx.GetAlertmanagerServers(c)
-    amsString := []string{}
-    for _, am := range ams {
-        amURL, err := url.Parse(am.URL)
-        if err != nil {
-            return nil, fmt.Errorf("could not parse alertmanager url: %v", err)
-        }
-        amsString = append(amsString, amURL.Hostname())
-    }
+	ams := ctx.GetAlertmanagerServers(c)
+	amsString := []string{}
+	for _, am := range ams {
+		amURL, err := url.Parse(am.URL)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse alertmanager url: %v", err)
+		}
+		amsString = append(amsString, amURL.Hostname())
+	}
 
 	return &ansible.Playbook{
 		Name: "Linux",
@@ -183,17 +184,17 @@ func (m *Module) Playbook(c context.Context) (*ansible.Playbook, error) {
 			"prometheus_static_targets_files": []string{},
 			"prometheus_web_external_url":     "{{o11y_prometheus_external_address}}",
 			"prometheus_web_listen_address":   net.JoinHostPort(m.cfg.ListenAddress, m.cfg.ListenPort),
-            "prometheus_alertmanager_config": []map[string]interface{}{
-                {
-                    "scheme": "http",
-                    "path_prefix": "/alertmanager",
-                    "static_configs": []map[string][]string{
-                        {
-                            "targets": amsString,
-                        },
-                    },
-                },
-            },
+			"prometheus_alertmanager_config": []map[string]interface{}{
+				{
+					"scheme":      "http",
+					"path_prefix": "/alertmanager",
+					"static_configs": []map[string][]string{
+						{
+							"targets": amsString,
+						},
+					},
+				},
+			},
 		},
 		Hosts:  "all",
 		Become: true,
@@ -220,7 +221,20 @@ func (m *Module) GetTargets(targets []labels.Labels, group string) ([]labels.Lab
 }
 
 func (m *Module) ReverseProxy(targets []labels.Labels, group string) ([]modules.ReverseProxyEntry, error) {
-	return modules.GetReverseProxy(targets, "9090", m.cfg.Name(), "/prometheus", group)
+	rp, err := modules.GetReverseProxy(targets, m.cfg.ListenPort, m.cfg.Name(), "/prometheus", group)
+	if err != nil {
+		return rp, fmt.Errorf("could not get reverse proxy entries: %v", err)
+	}
+
+	// If we're only listening on localhost, replace the host part of the entry.
+	if m.cfg.ListenAddress == "127.0.0.1" {
+		rp, err = util.ReplaceHost(rp, "127.0.0.1")
+		if err != nil {
+			return rp, fmt.Errorf("could not replace host address with localhost: %v", err)
+		}
+	}
+
+	return rp, nil
 }
 
 func (m *Module) GetPrometheusServers(targets []labels.Labels, group string) ([]promserver.PrometheusServer, error) {

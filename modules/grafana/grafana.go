@@ -31,6 +31,7 @@ import (
 	"github.com/roidelapluie/o11y-deploy/model/ctx"
 	"github.com/roidelapluie/o11y-deploy/model/dashboard"
 	"github.com/roidelapluie/o11y-deploy/modules"
+	"github.com/roidelapluie/o11y-deploy/util"
 
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/promql/parser"
@@ -448,5 +449,18 @@ func deepCopyTemplatingDetail(src dashboard.TemplatingDetail) dashboard.Templati
 }
 
 func (m *Module) ReverseProxy(targets []labels.Labels, group string) ([]modules.ReverseProxyEntry, error) {
-	return modules.GetReverseProxy(targets, fmt.Sprintf("%d", m.cfg.GrafanaPort), m.cfg.Name(), "/grafana", group)
+	rp, err := modules.GetReverseProxy(targets, fmt.Sprintf("%d", m.cfg.GrafanaPort), m.cfg.Name(), "/grafana", group)
+	if err != nil {
+		return rp, fmt.Errorf("could not get reverse proxy entries: %v", err)
+	}
+
+	// If we're only listening on localhost, replace the host part of the entry.
+	if m.cfg.GrafanaAddress == "127.0.0.1" {
+		rp, err = util.ReplaceHost(rp, "127.0.0.1")
+		if err != nil {
+			return rp, fmt.Errorf("could not replace host address with localhost: %v", err)
+		}
+	}
+
+	return rp, nil
 }
